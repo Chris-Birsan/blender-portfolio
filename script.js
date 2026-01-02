@@ -132,6 +132,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       // Step 1: Get current count
       const response = await fetch(`${FIREBASE_URL}/${eventPath}.json`, { cache: 'no-store' });
+      const response = await fetch(`${FIREBASE_URL}/${eventPath}.json`);
       if (!response.ok) {
         console.warn(`Analytics read failed (${response.status}) at ${eventPath}`);
         return;
@@ -141,6 +142,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const nextValue = Math.max(0, currentCount + delta);
 
       // Step 2: Increment/decrement and save
+      // Step 2: Increment and save
       const writeResponse = await fetch(`${FIREBASE_URL}/${eventPath}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -584,6 +586,10 @@ document.addEventListener('DOMContentLoaded', function() {
           if (targetVotedState) {
             newCount = await incrementCount(projectName);
             await setVoterState(projectName, currentIP, true);
+
+            // Track upvote in analytics (for our custom dashboard)
+            // This is a KEY METRIC - conversion from view to engagement
+            logCustomAnalyticsEvent('upvotes', projectName);
           } else {
             newCount = await decrementCount(projectName);
             await setVoterState(projectName, currentIP, false);
