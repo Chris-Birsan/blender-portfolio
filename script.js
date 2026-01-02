@@ -123,13 +123,15 @@ document.addEventListener('DOMContentLoaded', function() {
    *
    * @param {string} eventType - Type of event (project_views, upvotes, etc.)
    * @param {string} projectName - Name of the project (dungeon, rocketship, etc.)
+   * @param {number} [delta=1] - Amount to increment (or decrement) the metric
    */
-  async function logCustomAnalyticsEvent(eventType, projectName) {
+  async function logCustomAnalyticsEvent(eventType, projectName, delta = 1) {
     try {
       const today = getTodayDate();
       const eventPath = `analytics/events/${today}/${eventType}/${projectName}`;
 
       // Step 1: Get current count
+      const response = await fetch(`${FIREBASE_URL}/${eventPath}.json`, { cache: 'no-store' });
       const response = await fetch(`${FIREBASE_URL}/${eventPath}.json`);
       if (!response.ok) {
         console.warn(`Analytics read failed (${response.status}) at ${eventPath}`);
@@ -137,12 +139,14 @@ document.addEventListener('DOMContentLoaded', function() {
       }
 
       const currentCount = await response.json() || 0;
+      const nextValue = Math.max(0, currentCount + delta);
 
+      // Step 2: Increment/decrement and save
       // Step 2: Increment and save
       const writeResponse = await fetch(`${FIREBASE_URL}/${eventPath}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(currentCount + 1)
+        body: JSON.stringify(nextValue)
       });
 
       if (!writeResponse.ok) {
@@ -151,15 +155,68 @@ document.addEventListener('DOMContentLoaded', function() {
 
       // Also log to Firebase Analytics if available (Google's dashboard)
       if (typeof analytics !== 'undefined') {
-        analytics.logEvent(eventType, {
+        const analyticsPayload = {
           project_name: projectName,
           timestamp: Date.now()
-        });
+        };
+
+        // Mirror positive/negative deltas into GA4 for parity where possible
+        if (delta < 0) {
+          analyticsPayload.delta = delta;
+        }
+
+        analytics.logEvent(eventType, analyticsPayload);
       }
 
     } catch (error) {
       console.warn('Analytics logging error:', error);
       // Silently fail - analytics should never break the main app
+    }
+  }
+
+  /**
+   * Apply a precise upvote delta that can decrement when users unvote.
+   *
+   * We keep this separate from logCustomAnalyticsEvent so we can floor at zero
+   * and ensure the unvote (-1) is always applied before the UI re-enables.
+   */
+  async function applyUpvoteAnalyticsDelta(projectName, delta) {
+    const today = getTodayDate();
+    const eventPath = `analytics/events/${today}/upvotes/${projectName}`;
+
+    try {
+      const response = await fetch(`${FIREBASE_URL}/${eventPath}.json`, { cache: 'no-store' });
+      if (!response.ok) {
+        console.warn(`Analytics read failed (${response.status}) at ${eventPath}`);
+        return null;
+      }
+
+      const currentCount = await response.json() || 0;
+      const nextValue = Math.max(0, currentCount + delta);
+
+      const writeResponse = await fetch(`${FIREBASE_URL}/${eventPath}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(nextValue)
+      });
+
+      if (!writeResponse.ok) {
+        console.warn(`Analytics write failed (${writeResponse.status}) at ${eventPath}`);
+        return null;
+      }
+
+      if (typeof analytics !== 'undefined') {
+        analytics.logEvent('upvotes', {
+          project_name: projectName,
+          delta,
+          timestamp: Date.now()
+        });
+      }
+
+      return nextValue;
+    } catch (error) {
+      console.warn('Upvote analytics delta error:', error);
+      return null;
     }
   }
 
@@ -537,6 +594,10 @@ document.addEventListener('DOMContentLoaded', function() {
             newCount = await decrementCount(projectName);
             await setVoterState(projectName, currentIP, false);
           }
+
+          // Track net upvote delta for analytics so toggles don't inflate totals
+          const analyticsDelta = targetVotedState ? 1 : -1;
+          await applyUpvoteAnalyticsDelta(projectName, analyticsDelta);
 
           // Update localStorage
           localStorage.setItem(`upvote_${projectName}`, targetVotedState.toString());
