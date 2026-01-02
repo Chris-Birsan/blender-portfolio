@@ -1,0 +1,100 @@
+Q01) The navigation is inside `<nav id="main-nav">`, and the hamburger uses `aria-expanded` to signal state.
+Q02) The script wraps everything in a `DOMContentLoaded` listener.
+Q03) The class `active` toggles on the hamburger to change its appearance.
+Q04) `closeMenu()` runs on nav link clicks and updates `aria-expanded` on the button.
+Q05) A `resize` listener closes the menu when `window.innerWidth > 768`.
+Q06) It selects all `.gallery-grid img` elements.
+Q07) Escape closes the lightbox; ArrowLeft/ArrowRight navigate images.
+Q08) The `playsinline` attribute keeps videos inline on mobile.
+Q09) Each card is wrapped in an `<a>` with class `project-card-link`.
+Q10) All pages link to `styles.css` for shared styling.
+Q11) The dropdown click handler returns early when wider than 768px, keeping it closed.
+Q12) The welcome copy lives in `<section id="hero">`.
+Q13) The hamburger includes `aria-label="Toggle navigation"`.
+Q14) It uses `navigator.sendBeacon` to send analytics during unload.
+Q15) The `beforeunload` handler logs session duration only if time on page exceeds 2 seconds.
+Q16) Hearts are plain text spans showing `♡` before voting.
+Q17) It uses `new URLSearchParams(window.location.search)`.
+Q18) `index.html` is the default homepage.
+Q19) Project pages live in the `projects/` folder.
+Q20) A back link labeled “← Back to Projects” points to `../index.html`.
+Q21) `getCurrentProjectFromURL` regexes `/projects/{slug}.html` from the path.
+Q22) The `PROJECTS` array lists all eight slugs.
+Q23) The dashboard footer links back via `href="index.html"`.
+Q24) The password modal hides metrics from casual visitors despite static hosting.
+Q25) `analytics.html` holds the dashboard markup and scripts.
+Q26) GitHub Pages requires the `.html` path; without it the static file wouldn’t resolve.
+Q27) The dropdown label remains an anchor tag so it stays focusable even when JS intercepts clicks.
+Q28) Assets are under `images/` (and `../images/` from project pages) and videos under the same tree.
+Q29) Firebase SDKs load from CDN version 9.22.0 via `<script src="https://www.gstatic.com/...">`.
+Q30) A `<script src="script.js"></script>` tag is placed before `</body>`.
+Q31) Each page re-imports Firebase SDKs because static pages load independently.
+Q32) The active nav item uses the `active` class.
+Q33) `<meta name="viewport" content="width=device-width, initial-scale=1.0">` controls scaling.
+Q34) The dropdown label shows “Projects ▼”.
+Q35) It logs a `page_view` event with `page_title: 'Homepage'`.
+Q36) `script.js` is shared across home and project pages.
+Q37) Card videos reference `images/.../main.mp4` with autoplay/loop/muted attributes.
+Q38) It uses `https://blender-portfolio-default-rtdb.firebaseio.com` as the base URL.
+Q39) PUT writes exact values and is chosen over POST for idempotent voter booleans.
+Q40) It GETs `/votes/{project}/count.json` before increments.
+Q41) Fetches use `cache: 'no-store'` when reading analytics counts before incrementing.
+Q42) Daily analytics keys use `YYYY-MM-DD` from `getTodayDate()`.
+Q43) It reads current value, adds delta, and PUTs; Firebase transactions would avoid races.
+Q44) Total visits are stored at `analytics/events/{today}/total_visits`.
+Q45) `fetchDayData` GETs `/analytics/events/{date}.json`.
+Q46) Reset zeroes `session_duration/{project}` along with views and upvotes.
+Q47) `syncUpvoteAnalyticsCount` PUTs the authoritative count to `/analytics/events/{today}/upvotes/{project}`.
+Q48) Session durations are numbers stored at `/analytics/events/{today}/session_duration/{project}` via sendBeacon.
+Q49) `_write_check` at `analytics/events/{today}/_write_check` warns on 401/403.
+Q50) `putJSON` wraps PUT requests for reset operations.
+Q51) The voter fetch uses `{ cache: 'no-store' }` during reset.
+Q52) If Firebase returns an object, it tries `data.count` else falls back to number or zero.
+Q53) Conversion rate is `(totalUpvotes / totalViews) * 100` and returns 0 if views are zero.
+Q54) It expects `project_views` and `upvotes` objects keyed by project and sorts by `conversionRate` descending.
+Q55) Transactions would prevent two users from overwriting each other during simultaneous read-modify-write.
+Q56) Dashboard vote counts come from `/votes.json`.
+Q57) IPs replace dots with underscores before storing under `/votes/{project}/voters/{ip}`.
+Q58) Authoritative tallies live at `/votes/{project}/count`.
+Q59) `initializeUpvoteButtons` checks server/local state and toggles classes on load.
+Q60) Local keys use `upvote_{project}` booleans.
+Q61) It calls `https://api.ipify.org?format=json`, returning `{ "ip": "..." }`.
+Q62) Falling back to localStorage keeps voting usable if IP fetch fails.
+Q63) `sanitizeIP` converts `192.168.1.1` to `192_168_1_1` to satisfy Firebase key rules.
+Q64) On failure it restores the UI to the server-reported vote state and shows an alert.
+Q65) `decrementCount` clamps the new count with `Math.max(0, currentCount - 1)`.
+Q66) `syncUpvoteAnalyticsCount` aligns daily upvote analytics with actual count after increments.
+Q67) The server-side `/voters/{ip}` map blocks duplicate votes across sessions/browsers.
+Q68) Each `.upvote-btn` adds a click listener and reads its `data-project` attribute.
+Q69) Buttons are disabled during async calls to avoid double-click races.
+Q70) The heart changes from `♡` to `♥` and the button gets a `voted` class when active.
+Q71) After toggling, it rechecks `hasVotedOnServer` to reconcile states.
+Q72) If on the homepage (`currentProject` null), unload logging is skipped.
+Q73) `cache: 'no-store'` ensures the latest counts before applying deltas.
+Q74) Voter flags live at `/votes/{project}/voters/{sanitizedIP}`.
+Q75) Syncing daily upvote metric to the authoritative count prevents drift from repeated toggles.
+Q76) First check Firebase responses for 401/403 indicating blocked writes by rules.
+Q77) On fetch errors it logs a console error and falls back to localStorage counts.
+Q78) Analytics nodes use ISO date keys, simplifying chronological charts.
+Q79) It logs `project_views/{project}` separately from `total_visits` to distinguish page vs project hits.
+Q80) Repeated toggles create positive/negative deltas, so sync overwrites with the true count.
+Q81) `logCustomAnalyticsEvent('project_views', currentProject)` records project page loads.
+Q82) `beforeunload` logs `session_duration` only if >2 seconds have elapsed.
+Q83) Demo reset zeroes project views, upvotes, and session duration for the day.
+Q84) Failures only warn in console; the site continues functioning.
+Q85) `_write_check` PUT warns when blocked, signaling rule or auth issues.
+Q86) Hero cards show total visits, total views, total upvotes, and average conversion rate calculated by `calculateTotals`.
+Q87) `cache: 'no-store'` avoids stale reads before writes in analytics increments.
+Q88) Trend chart plots visits, project views, and upvotes over the last 7 days.
+Q89) Missing analytics objects default to zero counts per project before building leaderboard.
+Q90) Homepage logs `page_view`; project pages log `project_viewed` with the slug.
+Q91) Password `analytics123` is stored in the `DASHBOARD_PASSWORD` constant.
+Q92) It checks `projectViews > 0` before dividing; otherwise conversion rate is 0.
+Q93) Conversion bars cap width with `Math.min(rate, 100)` though percentages may exceed 100.
+Q94) `calculateTotals` sums per-project views/upvotes and total visits for hero metrics.
+Q95) `refreshData` disables the refresh button, shows “Refreshing...”, reloads data, then re-enables it.
+Q96) During reset it iterates voter keys and PUTs `false` to align with zero counts.
+Q97) Chart.js renders the trend chart; existing instances are destroyed before recreation.
+Q98) Leaderboard ranks are styled via `rank-1`, `rank-2`, and `rank-3` classes for top slots.
+Q99) Vote counts in `/votes` are authoritative, so leaderboard context fetches them separately from analytics aggregates.
+Q100) Network/null data or rules blocks can stop loading; the table initially shows a spinner row while waiting.

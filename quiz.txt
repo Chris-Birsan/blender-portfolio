@@ -1,0 +1,309 @@
+# Blender Portfolio Full-System Quiz
+Date: 2025-08-21
+Instructions: Answer without peeking at the code; use hints only if you get stuck. Aim to move steadily—the whole quiz should take about 45–75 minutes.
+
+## 1) Fundamentals (static site, DOM, events)
+Q01) What HTML element wraps the main site navigation, and which aria attribute on the hamburger button signals its expanded state?
+Hint: Check the `<nav id="main-nav">` block in `index.html`.
+
+Q02) Which event is listened for at the top of `script.js` to ensure the DOM is ready before running logic?
+Hint: It surrounds the entire script contents.
+
+Q03) How does the hamburger button visually indicate open vs closed state in CSS (which class toggles)?
+Hint: The JS adds/removes a class on the button itself.
+
+Q04) When a navigation link is clicked, what function closes the mobile menu, and which aria attribute gets updated?
+Hint: Search for `closeMenu` in `script.js`.
+
+Q05) Which event listener resets dropdowns when the viewport grows beyond mobile width?
+Hint: It compares `window.innerWidth` to 768.
+
+Q06) On project pages, what DOM selector is used to gather all gallery images for the lightbox?
+Hint: Look for `.gallery-grid img`.
+
+Q07) Which keyboard keys are handled to navigate or close the lightbox overlay?
+Hint: See the `keydown` handler near the end of `script.js`.
+
+Q08) What attribute on the video elements ensures they play inline without controls popping out on mobile?
+Hint: See `<video autoplay loop muted playsinline>` in `index.html`.
+
+Q09) How are project links structured in the grid—what class wraps each card to make the entire card clickable?
+Hint: The `<a>` elements around cards share a class.
+
+Q10) Which CSS file is linked from all HTML pages to unify styling?
+Hint: Check the `<link>` tags in `index.html` and project pages.
+
+Q11) What keeps the navigation dropdown closed on desktop when clicking its label?
+Hint: The dropdown toggle early-returns if `window.innerWidth > 768`.
+
+Q12) Where is the welcome hero text located in the DOM hierarchy (which section id)?
+Hint: It sits between header and projects grid.
+
+Q13) What attribute on the hamburger button communicates its purpose to assistive tech?
+Hint: It’s an aria-* attribute describing the control.
+
+Q14) How does the code prevent page unload analytics from being lost when closing the tab?
+Hint: It avoids `fetch` and uses an API designed for unload.
+
+Q15) Which event type is used to measure time on page before unloading, and what minimum seconds are required before logging session duration?
+Hint: Look for the check before calling `navigator.sendBeacon`.
+
+Q16) How are SVG-like heart icons represented in the upvote buttons before voting?
+Hint: They are simple text characters inside a span.
+
+Q17) What DOM API is used to fetch query parameters for the optional demo reset feature?
+Hint: It involves `URLSearchParams`.
+
+## 2) Repo + routing + GitHub Pages URLs
+Q18) What is the default homepage file name that GitHub Pages serves at the repo root?
+Hint: It’s linked as active in the nav.
+
+Q19) How are project detail pages organized on disk—what folder holds them relative to root?
+Hint: Check the hrefs in the Projects dropdown.
+
+Q20) Which navigation link returns users from a project detail page back to the main grid, and how is it labeled?
+Hint: Look for a back button near the top of project pages.
+
+Q21) How does the code detect which project page is currently loaded based on the URL path?
+Hint: A regex extracts the project slug from `/projects/*.html`.
+
+Q22) What JavaScript constant lists all eight project slugs for consistent handling across pages?
+Hint: Search for `PROJECTS = [`.
+
+Q23) When navigating from the analytics dashboard, which link returns to the portfolio and what path does it use?
+Hint: It’s near the dashboard footer.
+
+Q24) Why is the analytics dashboard protected by a password modal even though it’s a static site?
+Hint: Think about exposing metrics publicly.
+
+Q25) Which file contains the dashboard HTML and is intended to be opened directly from the repo root?
+Hint: It imports Chart.js.
+
+Q26) How would GitHub Pages treat visiting `/projects/rocketship` without `.html`—what default behavior does the repo rely on?
+Hint: Consider static hosting and file extensions.
+
+Q27) What attribute keeps dropdown links keyboard-focusable even though they toggle menus on mobile?
+Hint: It’s still an anchor tag despite JS preventing default under 768px.
+
+Q28) Where are project images and videos stored relative to HTML files?
+Hint: See `<img src="images/...">` and `<video>` sources.
+
+Q29) How are analytics scripts included—are they bundled or linked via CDN, and which version is specified?
+Hint: Check the `<script src="https://www.gstatic.com/firebasejs/9.22.0/...">` tags.
+
+Q30) What tag loads the main interaction logic across all pages, and where is it placed in `index.html`?
+Hint: It’s added just before closing `</body>`.
+
+Q31) Why does each project page re-include Firebase SDK script tags instead of relying on the homepage load?
+Hint: Consider independent page loads on static hosting.
+
+Q32) Which HTML attribute on nav links marks the currently active page?
+Hint: Look for `class="nav-link active"`.
+
+Q33) What meta tag ensures the pages scale correctly on mobile devices?
+Hint: It lives in the `<head>` of each page.
+
+Q34) How is the dropdown label displayed—what text indicates there’s a submenu?
+Hint: It includes a triangle arrow.
+
+Q35) Which page title is logged to Firebase Analytics on the homepage, and what event name is used?
+Hint: Look at the `analytics.logEvent` call in `index.html`.
+
+Q36) What script file is reused on both portfolio and project pages to avoid duplication of logic?
+Hint: Only one JS file in repo root.
+
+Q37) How are project video sources referenced to allow autoplay without user clicks on the main grid?
+Hint: Check the `<video>` tags inside cards.
+
+## 3) Firebase RTDB REST usage (GET/PUT/DELETE, paths, JSON)
+Q38) What base URL is used for all Firebase Realtime Database REST calls?
+Hint: It appears in both `script.js` and `analytics.html`.
+
+Q39) Which HTTP method writes exact values to known paths (idempotent), and why is it chosen over POST for votes?
+Hint: See `setVoterState` comments.
+
+Q40) How does the code read the current upvote count before incrementing—what path is requested?
+Hint: `getCount` fetches from `/votes/{project}/count.json`.
+
+Q41) What caching directive is applied when reading analytics event counts to avoid stale data?
+Hint: Look at the fetch options in `logCustomAnalyticsEvent`.
+
+Q42) How are analytics events stored by date—what key format is used for daily nodes?
+Hint: It comes from `getTodayDate()` splitting ISO strings.
+
+Q43) What pattern does `logCustomAnalyticsEvent` follow to increment metrics, and what production feature could prevent race conditions?
+Hint: Three steps: read, add, write.
+
+Q44) Where does the code write total page visits for today, and which field name holds the aggregate?
+Hint: See `logPageVisit` for the path.
+
+Q45) How does the dashboard fetch a single day’s analytics data—what function and path does it call?
+Hint: See `fetchDayData` in `analytics.html`.
+
+Q46) When resetting demo data, which paths are zeroed for each project besides upvotes and views?
+Hint: Check reset loops for another metric.
+
+Q47) Which REST call synchronizes upvote analytics to the authoritative vote count instead of applying deltas?
+Hint: Look for `syncUpvoteAnalyticsCount`.
+
+Q48) How are session durations stored in Firebase—what path pattern and value type are used?
+Hint: Logged via `navigator.sendBeacon` during `beforeunload`.
+
+Q49) What Firebase path checks write access for analytics, and what status codes trigger a warning?
+Hint: See `_write_check` probe.
+
+Q50) How does the dashboard write replacements when resetting today’s data, and what helper wraps the PUT request?
+Hint: Check `putJSON`.
+
+Q51) What fetch option is used when resetting voter booleans to avoid cached results during iteration?
+Hint: Look at the voters fetch in `resetDashboardData`.
+
+Q52) When reading vote counts, how does the code handle unexpected object structures returned by Firebase?
+Hint: It checks for `typeof data === 'object'` then falls back.
+
+Q53) Which metric is calculated as `(totalUpvotes / totalViews) * 100` in dashboard aggregation, and how is division by zero avoided?
+Hint: See `calculateTotals` return object.
+
+Q54) What JSON structure does `buildLeaderboard` expect for per-project counts, and how are conversion rates sorted?
+Hint: It maps `views` and `upvotes` over `PROJECTS`.
+
+Q55) Why might using Firebase transactions be safer than the current read-modify-write for counts?
+Hint: Consider simultaneous voters.
+
+Q56) What REST endpoint aggregates vote counts across all projects for the dashboard leaderboard?
+Hint: `fetchVoteCounts` path.
+
+Q57) Which Firebase key sanitation step is necessary before storing voter IPs, and what characters are replaced?
+Hint: Dots become underscores.
+
+## 4) Voting system (schema, voters, toggle behavior, IP logic)
+Q58) Where is the authoritative vote tally stored for each project (path and field name)?
+Hint: Look at `getCount`/`setCount` paths.
+
+Q59) How does the UI determine if a user has already voted when rendering buttons on load?
+Hint: See `initializeUpvoteButtons` initial state logic.
+
+Q60) What localStorage key pattern tracks whether the current browser has voted for a project?
+Hint: It starts with `upvote_`.
+
+Q61) Which external service provides the IP address to enforce one vote per IP, and what format does it return?
+Hint: JSON with an `ip` field.
+
+Q62) Why does the code fall back to localStorage when IP lookups fail?
+Hint: Consider resilience when external APIs are down.
+
+Q63) How does `sanitizeIP` transform `192.168.1.1` for Firebase storage, and why is this necessary?
+Hint: Firebase disallows certain characters in keys.
+
+Q64) What happens in the UI when a vote toggle fails to persist to Firebase—how is the button state handled?
+Hint: The code reverts UI to `serverSaysVoted` and alerts.
+
+Q65) How does the code prevent negative vote counts when unvoting?
+Hint: See `decrementCount` using `Math.max`.
+
+Q66) What analytics function is called when a user upvotes to keep the daily upvote metric aligned with totals?
+Hint: Look for sync after `incrementCount`.
+
+Q67) How are duplicate upvotes prevented across sessions/browsers beyond localStorage?
+Hint: Server-side voter map by sanitized IP.
+
+Q68) Which event listener attaches to each upvote button, and how are data attributes used to identify the project?
+Hint: Buttons carry `data-project` values.
+
+Q69) Why does the code disable the button during async vote requests?
+Hint: Prevent double-click races.
+
+Q70) What user feedback shows a successful vote vs removal on the heart icon?
+Hint: Heart switches between hollow and filled characters.
+
+Q71) How does the code reconcile server truth vs local state after toggling a vote?
+Hint: It re-fetches voter status from server.
+
+Q72) What happens to session duration tracking if the user never visits a project page (only homepage)?
+Hint: `currentProject` check before logging on unload.
+
+Q73) Why is `cache: 'no-store'` used when fetching current analytics counts before incrementing upvotes?
+Hint: Prevent stale numbers during rapid toggling.
+
+Q74) What Firebase path stores per-IP voter booleans for a given project?
+Hint: `/votes/{project}/voters/{sanitizedIP}`.
+
+Q75) Which mechanism ensures analytics upvote totals don’t drift from vote counts even after multiple toggles?
+Hint: Sync function overwrites daily upvote metric.
+
+Q76) What debug check should you do first if all vote writes start failing?
+Hint: Consider Firebase security rule responses (401/403).
+
+Q77) How does the code handle vote count fetch errors to keep UI usable?
+Hint: Falls back to cached local counts.
+
+## 5) Analytics system (event semantics, net vs event counts, daily keys)
+Q78) What daily key format organizes analytics events, and why does this make trend charts straightforward?
+Hint: ISO date substrings (YYYY-MM-DD).
+
+Q79) Which metrics are logged for each project view page load, and how are they differentiated from total visits?
+Hint: Separate fields for `project_views` vs `total_visits`.
+
+Q80) Why can net upvotes differ from the number of upvote events, and how does the code correct for this?
+Hint: Toggling causes positive and negative deltas; sync fixes it.
+
+Q81) What function records project view events when on a project detail page, and what eventType does it use?
+Hint: Called right after `currentProject` detection.
+
+Q82) How does the system log time spent on a project page, and what threshold filters out accidental visits?
+Hint: Requires >2 seconds before logging via `sendBeacon`.
+
+Q83) Which analytics fields are reset alongside votes during the optional demo reset query parameter?
+Hint: Views, upvotes, and session duration.
+
+Q84) What’s the fallback behavior if analytics writes fail—does the site still function?
+Hint: Errors are warned but non-blocking.
+
+Q85) How does the code detect blocked analytics writes by rules, and where is the result surfaced?
+Hint: `_write_check` warns on 401/403.
+
+Q86) Which dashboard hero metrics display today’s totals, and how are they computed?
+Hint: Visits, views, upvotes, conversion rate via `calculateTotals`.
+
+Q87) Why is `cache: 'no-store'` important when reading counts before incrementing analytics values?
+Hint: Avoid stale read-modify-write races.
+
+Q88) What daily analytics nodes does the dashboard line chart visualize across seven days?
+Hint: Visits, project views, upvotes arrays.
+
+Q89) How does the dashboard handle null/empty analytics nodes when building the leaderboard?
+Hint: Defaults missing entries to 0 per project.
+
+Q90) Which event names are logged to Firebase Analytics SDK on the homepage and on project pages?
+Hint: `page_view` and `project_viewed`.
+
+## 6) Dashboard logic (aggregations, conversion math, trends, leaderboards, pitfalls)
+Q91) What password string gates access to the analytics dashboard, and where is it stored client-side?
+Hint: Constant near the top of dashboard script.
+
+Q92) How does the dashboard avoid division by zero when computing conversion rates for projects with no views?
+Hint: Conditional operator in `buildLeaderboard`.
+
+Q93) Why might conversion rates exceed 100% and how does the UI cap the visualization?
+Hint: Width of conversion bar uses `Math.min` with 100.
+
+Q94) What function aggregates today’s totals for the hero cards, and which properties does it sum?
+Hint: Check `calculateTotals` return keys.
+
+Q95) How does the dashboard refresh button work, and what UI states does it set while loading?
+Hint: `refreshData` disables button and changes text.
+
+Q96) When resetting the dashboard, how are voter flags aligned with zeroed counts to maintain integrity?
+Hint: Iterates voter keys and PUTs false.
+
+Q97) What charting library powers the 7-day trend visualization, and how is the instance reused on refreshes?
+Hint: Chart.js with destroy/recreate logic.
+
+Q98) How are leaderboard rows ranked visually, and which CSS classes color the top three placements?
+Hint: `rank-1`, `rank-2`, `rank-3` classes.
+
+Q99) Why does the dashboard fetch vote counts separately from analytics aggregates when building leaderboard context?
+Hint: Votes are authoritative in `/votes` tree.
+
+Q100) Which failure modes could prevent dashboard data from loading, and what initial table state signals loading?
+Hint: Consider null reads, network errors, and the spinner row.
