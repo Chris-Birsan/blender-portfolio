@@ -146,7 +146,8 @@
 
     .leaderboard-table {
       width: 100%;
-      border-collapse: collapse;
+      border-collapse: separate;
+      border-spacing: 0;
     }
 
     .leaderboard-table th,
@@ -192,38 +193,54 @@
     .leaderboard-table tr.rank-1,
     .leaderboard-table tr.rank-2,
     .leaderboard-table tr.rank-3 {
-      color: #111;
+      color: #1a1a1a;
       font-weight: 700;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.22), inset 0 -1px 0 rgba(0, 0, 0, 0.22);
     }
 
     .leaderboard-table tr.rank-1 {
-      background: #ffd700;
+      background: #ffd24f;
     }
 
     .leaderboard-table tr.rank-2 {
-      background: #c0c0c0;
+      background: #dfe4eb;
     }
 
     .leaderboard-table tr.rank-3 {
-      background: #cd7f32;
+      background: #e7a66f;
     }
 
-    .leaderboard-table tr.rank-1:hover { background: #ffd700; }
-    .leaderboard-table tr.rank-2:hover { background: #c0c0c0; }
-    .leaderboard-table tr.rank-3:hover { background: #cd7f32; }
+    .leaderboard-table tr.rank-1:hover { background: #ffdd74; }
+    .leaderboard-table tr.rank-2:hover { background: #e7ecf3; }
+    .leaderboard-table tr.rank-3:hover { background: #edb986; }
 
     .leaderboard-table tr.rank-1 .rank-badge,
     .leaderboard-table tr.rank-2 .rank-badge,
     .leaderboard-table tr.rank-3 .rank-badge {
       border: 2px solid #000;
       color: #000;
-      background: rgba(0, 0, 0, 0.08);
+      background: rgba(0, 0, 0, 0.15);
+    }
+
+    .leaderboard-table tr.rank-1 td:first-child,
+    .leaderboard-table tr.rank-2 td:first-child,
+    .leaderboard-table tr.rank-3 td:first-child {
+      border-top-left-radius: 10px;
+      border-bottom-left-radius: 10px;
+    }
+
+    .leaderboard-table tr.rank-1 td:last-child,
+    .leaderboard-table tr.rank-2 td:last-child,
+    .leaderboard-table tr.rank-3 td:last-child {
+      border-top-right-radius: 10px;
+      border-bottom-right-radius: 10px;
     }
 
     .leaderboard-table tr.rank-1 .upvote-ratio,
     .leaderboard-table tr.rank-2 .upvote-ratio,
     .leaderboard-table tr.rank-3 .upvote-ratio {
-      color: inherit;
+      color: #00d16a;
+      font-weight: bold;
     }
 
     .project-name {
@@ -231,7 +248,7 @@
     }
 
     .upvote-ratio {
-      color: #00ff88;
+      color: #00d16a;
       font-weight: bold;
     }
 
