@@ -14,8 +14,16 @@
        ANALYTICS DASHBOARD STYLES
        ═══════════════════════════════════════════════════ */
 
+    body.analytics-page {
+      margin: 0;
+      padding: 1.25rem;
+      background: #f0f0f0;
+      overflow-x: hidden;
+    }
+
     .analytics-container {
-      max-width: 1200px;
+      width: 100%;
+      max-width: 1100px;
       margin: 0 auto;
       padding: 2rem;
     }
@@ -144,8 +152,15 @@
       font-size: 1.3rem;
     }
 
+    .leaderboard-table-wrapper {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
     .leaderboard-table {
       width: 100%;
+      min-width: 640px;
       border-collapse: separate;
       border-spacing: 0;
     }
@@ -385,25 +400,84 @@
         padding: 1rem;
       }
 
-      .hero-metrics {
-        grid-template-columns: repeat(2, 1fr);
-      }
-
       .metric-value {
         font-size: 1.8rem;
       }
 
       .leaderboard-table {
-        font-size: 0.85rem;
+        font-size: 0.9rem;
+        min-width: 540px;
       }
 
       .ratio-bar {
         display: none;
       }
     }
+
+    @media (max-width: 600px) {
+      .hero-metrics {
+        grid-template-columns: 1fr;
+      }
+
+      .metric-card {
+        padding: 1.1rem;
+      }
+
+      .chart-container {
+        height: 240px;
+      }
+
+      .leaderboard-table {
+        min-width: 520px;
+      }
+
+      .leaderboard-table th,
+      .leaderboard-table td {
+        padding: 0.85rem 0.65rem;
+      }
+
+      .leaderboard h2 {
+        font-size: 1.1rem;
+      }
+
+      .refresh-btn {
+        width: 100%;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .analytics-header {
+        padding: 1.5rem;
+      }
+
+      .leaderboard-table {
+        font-size: 0.85rem;
+        min-width: 480px;
+      }
+
+      .leaderboard-table th,
+      .leaderboard-table td {
+        padding: 0.75rem 0.6rem;
+      }
+    }
+
+    @media (orientation: landscape) and (max-width: 900px) {
+      .analytics-container {
+        padding: 1rem 1.25rem;
+      }
+
+      .chart-container {
+        height: 260px;
+      }
+
+      .leaderboard-table td,
+      .leaderboard-table th {
+        padding: 0.9rem 0.7rem;
+      }
+    }
   </style>
 </head>
-<body>
+<body class="analytics-page">
 
   <!-- Password Protection Modal -->
   <div class="password-modal" id="passwordModal">
@@ -465,25 +539,27 @@
       <p style="color: #888; margin-bottom: 1rem; font-size: 0.9rem;">
         Ranked by total upvotes (ties broken by views). Upvote Ratio shows share of all upvotes.
       </p>
-      <table class="leaderboard-table">
-        <thead>
-          <tr>
-            <th>Rank</th>
-            <th>Project</th>
-            <th>Views</th>
-            <th>Upvotes</th>
-            <th>Upvote Ratio</th>
-          </tr>
-        </thead>
-        <tbody id="leaderboardBody">
-          <tr>
-            <td colspan="5" class="loading">
-              <div class="spinner"></div>
-              Loading data...
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="leaderboard-table-wrapper">
+        <table class="leaderboard-table">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Project</th>
+              <th>Views</th>
+              <th>Upvotes</th>
+              <th>Upvote Ratio</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboardBody">
+            <tr>
+              <td colspan="5" class="loading">
+                <div class="spinner"></div>
+                Loading data...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Footer -->
