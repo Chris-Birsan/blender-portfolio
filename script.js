@@ -1,5 +1,5 @@
 // Main functionality
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
 
   // ═══════════════════════════════════════════════════
   // HAMBURGER MENU FUNCTIONALITY
@@ -74,6 +74,9 @@ document.addEventListener('DOMContentLoaded', function() {
   // This uses a public Firebase database for shared vote counts
   const FIREBASE_URL = 'https://blender-portfolio-default-rtdb.firebaseio.com';
 
+  // Define all known projects so we can reset/demo data consistently
+  const PROJECTS = ['dungeon', 'rocketship', 'ak47', 'awp', 'pizza', 'mouse', 'house', 'lighthouse'];
+
   // ═══════════════════════════════════════════════════
   // CUSTOM ANALYTICS TRACKING (for our dashboard)
   // ═══════════════════════════════════════════════════
@@ -132,7 +135,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
       // Step 1: Get current count
       const response = await fetch(`${FIREBASE_URL}/${eventPath}.json`, { cache: 'no-store' });
-      const response = await fetch(`${FIREBASE_URL}/${eventPath}.json`);
       if (!response.ok) {
         console.warn(`Analytics read failed (${response.status}) at ${eventPath}`);
         return;
@@ -142,7 +144,6 @@ document.addEventListener('DOMContentLoaded', function() {
       const nextValue = Math.max(0, currentCount + delta);
 
       // Step 2: Increment/decrement and save
-      // Step 2: Increment and save
       const writeResponse = await fetch(`${FIREBASE_URL}/${eventPath}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -175,25 +176,17 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   /**
-   * Apply a precise upvote delta that can decrement when users unvote.
-   *
-   * We keep this separate from logCustomAnalyticsEvent so we can floor at zero
-   * and ensure the unvote (-1) is always applied before the UI re-enables.
+   * Sync the upvote metric to the authoritative vote count to prevent drift
+   * from repeated toggles. This overwrites the day's upvote value for the
+   * project instead of accumulating deltas so analytics stays aligned with
+   * the real vote total.
    */
-  async function applyUpvoteAnalyticsDelta(projectName, delta) {
+  async function syncUpvoteAnalyticsCount(projectName, count) {
     const today = getTodayDate();
     const eventPath = `analytics/events/${today}/upvotes/${projectName}`;
+    const nextValue = Math.max(0, count);
 
     try {
-      const response = await fetch(`${FIREBASE_URL}/${eventPath}.json`, { cache: 'no-store' });
-      if (!response.ok) {
-        console.warn(`Analytics read failed (${response.status}) at ${eventPath}`);
-        return null;
-      }
-
-      const currentCount = await response.json() || 0;
-      const nextValue = Math.max(0, currentCount + delta);
-
       const writeResponse = await fetch(`${FIREBASE_URL}/${eventPath}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -208,7 +201,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (typeof analytics !== 'undefined') {
         analytics.logEvent('upvotes', {
           project_name: projectName,
-          delta,
+          count: nextValue,
           timestamp: Date.now()
         });
       }
@@ -272,6 +265,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Track when the page was loaded (for session duration)
   const sessionStartTime = Date.now();
+
+  // Optional reset for demo/testing environments
+  await resetDemoDataIfRequested();
 
   // Log this page visit
   logPageVisit();
@@ -493,6 +489,68 @@ document.addEventListener('DOMContentLoaded', function() {
     return newCount;
   }
 
+  // Optional helper to reset demo data when query param resetDemo=true is present
+  async function resetDemoDataIfRequested() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('resetDemo') !== 'true') return;
+
+    console.warn('resetDemo=true detected. Resetting today\'s analytics and vote data for all projects.');
+
+    const today = getTodayDate();
+    const resetWrites = [];
+
+    // Reset analytics aggregates
+    resetWrites.push(fetch(`${FIREBASE_URL}/analytics/events/${today}/total_visits.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(0)
+    }));
+
+    for (const project of PROJECTS) {
+      resetWrites.push(fetch(`${FIREBASE_URL}/analytics/events/${today}/project_views/${project}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(0)
+      }));
+
+      resetWrites.push(fetch(`${FIREBASE_URL}/analytics/events/${today}/upvotes/${project}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(0)
+      }));
+
+      resetWrites.push(fetch(`${FIREBASE_URL}/analytics/events/${today}/session_duration/${project}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(0)
+      }));
+    }
+
+    // Reset vote counts and clear voter flags (set to false instead of delete)
+    for (const project of PROJECTS) {
+      resetWrites.push(setCount(project, 0));
+
+      try {
+        const votersResponse = await fetch(`${FIREBASE_URL}/votes/${project}/voters.json`, { cache: 'no-store' });
+        const voters = await votersResponse.json();
+        const voterKeys = voters && typeof voters === 'object' ? Object.keys(voters) : [];
+
+        for (const voterKey of voterKeys) {
+          resetWrites.push(fetch(`${FIREBASE_URL}/votes/${project}/voters/${voterKey}.json`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(false)
+          }));
+        }
+      } catch (error) {
+        console.warn(`Unable to reset voters for ${project}:`, error);
+      }
+    }
+
+    await Promise.all(resetWrites);
+    console.info('Demo data reset complete for today.');
+  }
+
   // ─────────────────────────────────────────────────────
   // INITIALIZE UPVOTE BUTTONS
   // ─────────────────────────────────────────────────────
@@ -586,18 +644,13 @@ document.addEventListener('DOMContentLoaded', function() {
           if (targetVotedState) {
             newCount = await incrementCount(projectName);
             await setVoterState(projectName, currentIP, true);
-
-            // Track upvote in analytics (for our custom dashboard)
-            // This is a KEY METRIC - conversion from view to engagement
-            logCustomAnalyticsEvent('upvotes', projectName);
           } else {
             newCount = await decrementCount(projectName);
             await setVoterState(projectName, currentIP, false);
           }
 
-          // Track net upvote delta for analytics so toggles don't inflate totals
-          const analyticsDelta = targetVotedState ? 1 : -1;
-          await applyUpvoteAnalyticsDelta(projectName, analyticsDelta);
+          // Keep analytics in sync with the authoritative vote count
+          await syncUpvoteAnalyticsCount(projectName, newCount);
 
           // Update localStorage
           localStorage.setItem(`upvote_${projectName}`, targetVotedState.toString());
