@@ -185,12 +185,12 @@
       font-weight: 500;
     }
 
-    .conversion-rate {
+    .upvote-ratio {
       color: #00ff88;
       font-weight: bold;
     }
 
-    .conversion-bar {
+    .ratio-bar {
       width: 100px;
       height: 8px;
       background: #333;
@@ -201,7 +201,7 @@
       margin-left: 0.5rem;
     }
 
-    .conversion-fill {
+    .ratio-fill {
       height: 100%;
       background: linear-gradient(90deg, #00d4ff, #00ff88);
       border-radius: 4px;
@@ -335,7 +335,7 @@
         font-size: 0.85rem;
       }
 
-      .conversion-bar {
+      .ratio-bar {
         display: none;
       }
     }
@@ -381,10 +381,6 @@
         <div class="metric-value" id="totalUpvotes">-</div>
         <div class="metric-label">Upvotes Today</div>
       </div>
-      <div class="metric-card">
-        <div class="metric-value" id="conversionRate">-</div>
-        <div class="metric-label">Avg Conversion Rate</div>
-      </div>
     </div>
 
     <!-- 7-Day Trend Chart -->
@@ -405,7 +401,7 @@
     <div class="leaderboard">
       <h2>Project Leaderboard</h2>
       <p style="color: #888; margin-bottom: 1rem; font-size: 0.9rem;">
-        Ranked by view-to-upvote conversion rate (engagement quality)
+        Ranked by total upvotes (ties broken by views). Upvote Ratio shows share of all upvotes.
       </p>
       <table class="leaderboard-table">
         <thead>
@@ -414,7 +410,7 @@
             <th>Project</th>
             <th>Views</th>
             <th>Upvotes</th>
-            <th>Conversion Rate</th>
+            <th>Upvote Ratio</th>
           </tr>
         </thead>
         <tbody id="leaderboardBody">
@@ -550,7 +546,9 @@
       let totalViews = 0;
       let totalUpvotes = 0;
 
-      PROJECTS.forEach(project => {
+      const projectKeys = new Set([...Object.keys(views), ...Object.keys(upvotes), ...PROJECTS]);
+
+      projectKeys.forEach(project => {
         totalViews += views[project] || 0;
         totalUpvotes += upvotes[project] || 0;
       });
@@ -558,42 +556,41 @@
       return {
         visits: dayData.total_visits || 0,
         views: totalViews,
-        upvotes: totalUpvotes,
-        conversionRate: totalViews > 0 ? ((totalUpvotes / totalViews) * 100).toFixed(1) : 0
+        upvotes: totalUpvotes
       };
     }
 
     /**
-     * Build leaderboard data with conversion rates
-     *
-     * CONCEPT: Conversion Rate
-     * Conversion rate = (Desired action / Total opportunity) × 100
-     *
-     * In gaming: Kill rate = Kills / Encounters
-     * In e-commerce: Purchase rate = Purchases / Visits
-     * For us: Upvote rate = Upvotes / Views
+     * Build leaderboard data with upvote ratios
      */
     function buildLeaderboard(dayData) {
       const views = dayData.project_views || {};
       const upvotes = dayData.upvotes || {};
 
-      const leaderboard = PROJECTS.map(project => {
+      const projectKeys = Array.from(new Set([...Object.keys(views), ...Object.keys(upvotes), ...PROJECTS]));
+      const totalUpvotes = projectKeys.reduce((sum, project) => sum + (upvotes[project] || 0), 0);
+
+      const leaderboard = projectKeys.map(project => {
         const projectViews = views[project] || 0;
         const projectUpvotes = upvotes[project] || 0;
-        const conversionRate = projectViews > 0
-          ? ((projectUpvotes / projectViews) * 100).toFixed(1)
+        const upvoteRatio = totalUpvotes > 0
+          ? parseFloat(((projectUpvotes / totalUpvotes) * 100).toFixed(1))
           : 0;
 
         return {
           name: project,
           views: projectViews,
           upvotes: projectUpvotes,
-          conversionRate: parseFloat(conversionRate)
+          upvoteRatio
         };
       });
 
-      // Sort by conversion rate (highest first)
-      leaderboard.sort((a, b) => b.conversionRate - a.conversionRate);
+      // Sort by upvotes, then views, then random tie-breaker
+      leaderboard.sort((a, b) => {
+        if (b.upvotes !== a.upvotes) return b.upvotes - a.upvotes;
+        if (b.views !== a.views) return b.views - a.views;
+        return Math.random() - 0.5;
+      });
 
       return leaderboard;
     }
@@ -609,7 +606,6 @@
       document.getElementById('totalVisits').textContent = totals.visits;
       document.getElementById('totalViews').textContent = totals.views;
       document.getElementById('totalUpvotes').textContent = totals.upvotes;
-      document.getElementById('conversionRate').textContent = totals.conversionRate + '%';
     }
 
     /**
@@ -618,7 +614,7 @@
     function renderLeaderboard(leaderboard) {
       const tbody = document.getElementById('leaderboardBody');
 
-      if (leaderboard.every(p => p.views === 0)) {
+      if (leaderboard.every(p => p.views === 0 && p.upvotes === 0)) {
         tbody.innerHTML = `
           <tr>
             <td colspan="5" style="text-align: center; color: #888; padding: 2rem;">
@@ -641,9 +637,9 @@
             <td>${project.views}</td>
             <td>${project.upvotes}</td>
             <td>
-              <span class="conversion-rate">${project.conversionRate}%</span>
-              <div class="conversion-bar">
-                <div class="conversion-fill" style="width: ${Math.min(project.conversionRate, 100)}%"></div>
+              <span class="upvote-ratio">${project.upvoteRatio}%</span>
+              <div class="ratio-bar">
+                <div class="ratio-fill" style="width: ${Math.min(project.upvoteRatio, 100)}%"></div>
               </div>
             </td>
           </tr>
