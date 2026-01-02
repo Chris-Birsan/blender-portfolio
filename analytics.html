@@ -389,9 +389,12 @@
 
     <!-- 7-Day Trend Chart -->
     <div class="chart-section">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap;">
         <h2>7-Day Trend</h2>
-        <button class="refresh-btn" onclick="refreshData()">Refresh Data</button>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+          <button class="refresh-btn" onclick="refreshData()">Refresh Data</button>
+          <button class="refresh-btn" style="background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);" onclick="resetDashboardData()" id="resetBtn">Reset Today</button>
+        </div>
       </div>
       <div class="chart-container">
         <canvas id="trendChart"></canvas>
@@ -807,6 +810,65 @@
 
       btn.disabled = false;
       btn.textContent = 'Refresh Data';
+    }
+
+    // ─────────────────────────────────────────────────────
+    // ADMIN / DEMO RESET HELPERS
+    // ─────────────────────────────────────────────────────
+
+    async function putJSON(path, value) {
+      const response = await fetch(`${FIREBASE_URL}/${path}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(value)
+      });
+
+      if (!response.ok) {
+        console.warn(`Reset write failed (${response.status}) at ${path}`);
+      }
+
+      return response.ok;
+    }
+
+    async function resetDashboardData() {
+      const btn = document.getElementById('resetBtn');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Resetting...';
+      }
+
+      const today = getDateString(0);
+
+      // Reset analytics aggregates for today
+      await putJSON(`analytics/events/${today}/total_visits`, 0);
+
+      for (const project of PROJECTS) {
+        await putJSON(`analytics/events/${today}/project_views/${project}`, 0);
+        await putJSON(`analytics/events/${today}/upvotes/${project}`, 0);
+        await putJSON(`analytics/events/${today}/session_duration/${project}`, 0);
+
+        // Keep vote totals and voter flags in sync with reset state
+        await putJSON(`votes/${project}/count`, 0);
+
+        try {
+          const votersResponse = await fetch(`${FIREBASE_URL}/votes/${project}/voters.json`, { cache: 'no-store' });
+          const voters = await votersResponse.json();
+          const voterKeys = voters && typeof voters === 'object' ? Object.keys(voters) : [];
+
+          for (const voterKey of voterKeys) {
+            await putJSON(`votes/${project}/voters/${voterKey}`, false);
+          }
+        } catch (error) {
+          console.warn(`Reset voters failed for ${project}:`, error);
+        }
+      }
+
+      await loadAllData();
+
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Reset Today';
+      }
     }
   </script>
 
