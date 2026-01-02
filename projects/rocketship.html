@@ -8,18 +8,20 @@
 </head>
 <body>
   
+  
+  
   <nav id="main-nav">
-    <button class="hamburger" id="hamburger">
+    <button class="hamburger" id="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
       <span></span>
       <span></span>
       <span></span>
     </button>
 
     <div class="nav-brand">
-      <h2>CB</h2>
+      <h2 class="logo-text">CB</h2>
     </div>
 
-    <ul class="nav-menu">
+    <ul class="nav-menu" id="nav-menu">
       <li><a href="../index.html" class="nav-link">Home</a></li>
       <li class="nav-dropdown">
         <span class="nav-link dropdown-toggle">Projects ▼</span>
@@ -36,6 +38,8 @@
       </li>
     </ul>
   </nav>
+
+
 
   <div class="project-detail">
     <a href="../index.html" class="back-button">← Back to Projects</a>
