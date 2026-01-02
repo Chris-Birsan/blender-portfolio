@@ -181,6 +181,51 @@
     .rank-2 { color: #c0c0c0; }
     .rank-3 { color: #cd7f32; }
 
+    .rank-badge {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+      font-weight: 700;
+      color: inherit;
+    }
+
+    .leaderboard-table tr.rank-1,
+    .leaderboard-table tr.rank-2,
+    .leaderboard-table tr.rank-3 {
+      color: #111;
+      font-weight: 700;
+    }
+
+    .leaderboard-table tr.rank-1 {
+      background: #ffd700;
+    }
+
+    .leaderboard-table tr.rank-2 {
+      background: #c0c0c0;
+    }
+
+    .leaderboard-table tr.rank-3 {
+      background: #cd7f32;
+    }
+
+    .leaderboard-table tr.rank-1:hover { background: #ffd700; }
+    .leaderboard-table tr.rank-2:hover { background: #c0c0c0; }
+    .leaderboard-table tr.rank-3:hover { background: #cd7f32; }
+
+    .leaderboard-table tr.rank-1 .rank-badge,
+    .leaderboard-table tr.rank-2 .rank-badge,
+    .leaderboard-table tr.rank-3 .rank-badge {
+      border: 2px solid #000;
+      color: #000;
+      background: rgba(0, 0, 0, 0.08);
+    }
+
+    .leaderboard-table tr.rank-1 .upvote-ratio,
+    .leaderboard-table tr.rank-2 .upvote-ratio,
+    .leaderboard-table tr.rank-3 .upvote-ratio {
+      color: inherit;
+    }
+
     .project-name {
       font-weight: 500;
     }
@@ -631,8 +676,8 @@
         const displayName = project.name.charAt(0).toUpperCase() + project.name.slice(1);
 
         return `
-          <tr>
-            <td><span class="rank ${rankClass}">#${rank}</span></td>
+          <tr class="${rankClass}">
+            <td><span class="rank rank-badge">#${rank}</span></td>
             <td class="project-name">${displayName}</td>
             <td>${project.views}</td>
             <td>${project.upvotes}</td>
