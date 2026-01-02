@@ -24,55 +24,61 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // ═══════════════════════════════════════════════════
-  // UPVOTE FUNCTIONALITY WITH SHARED COUNTS (CountAPI)
+  // UPVOTE FUNCTIONALITY WITH FIREBASE REALTIME DATABASE
   // ═══════════════════════════════════════════════════
-  const NAMESPACE = 'chris-birsan-blender-portfolio';
+
+  // Firebase Realtime Database URL (free tier)
+  // This uses a public Firebase database for shared vote counts
+  const FIREBASE_URL = 'https://blender-portfolio-upvotes-default-rtdb.firebaseio.com';
+
   const upvoteButtons = document.querySelectorAll('.upvote-btn');
 
-  // Fetch current count from CountAPI
+  // Fetch current count from Firebase
   async function getCount(projectName) {
     try {
-      const response = await fetch(`https://api.countapi.xyz/get/${NAMESPACE}/${projectName}`);
+      const response = await fetch(`${FIREBASE_URL}/votes/${projectName}.json`);
+      if (!response.ok) throw new Error('Network error');
       const data = await response.json();
-      return data.value || 0;
+      return data || 0;
     } catch (error) {
       console.error('Error fetching count:', error);
-      // Fallback to localStorage count
+      // Fallback to localStorage
       return parseInt(localStorage.getItem(`upvote_count_${projectName}`)) || 0;
     }
   }
 
-  // Increment count on CountAPI
-  async function incrementCount(projectName) {
+  // Update count on Firebase
+  async function setCount(projectName, count) {
     try {
-      const response = await fetch(`https://api.countapi.xyz/hit/${NAMESPACE}/${projectName}`);
+      const response = await fetch(`${FIREBASE_URL}/votes/${projectName}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(count)
+      });
+      if (!response.ok) throw new Error('Network error');
       const data = await response.json();
-      return data.value || 1;
+      return data;
     } catch (error) {
-      console.error('Error incrementing count:', error);
-      // Fallback to localStorage
-      const count = (parseInt(localStorage.getItem(`upvote_count_${projectName}`)) || 0) + 1;
+      console.error('Error setting count:', error);
       localStorage.setItem(`upvote_count_${projectName}`, count);
       return count;
     }
   }
 
-  // Decrement count (CountAPI doesn't support decrement, so we use a workaround)
+  // Increment count atomically
+  async function incrementCount(projectName) {
+    const currentCount = await getCount(projectName);
+    const newCount = currentCount + 1;
+    await setCount(projectName, newCount);
+    return newCount;
+  }
+
+  // Decrement count atomically
   async function decrementCount(projectName) {
-    try {
-      // CountAPI doesn't have a native decrement, so we'll use update endpoint
-      const currentCount = await getCount(projectName);
-      const newCount = Math.max(0, currentCount - 1);
-      // Use the update endpoint to set the new value
-      const response = await fetch(`https://api.countapi.xyz/update/${NAMESPACE}/${projectName}?amount=-1`);
-      const data = await response.json();
-      return Math.max(0, data.value || 0);
-    } catch (error) {
-      console.error('Error decrementing count:', error);
-      const count = Math.max(0, (parseInt(localStorage.getItem(`upvote_count_${projectName}`)) || 0) - 1);
-      localStorage.setItem(`upvote_count_${projectName}`, count);
-      return count;
-    }
+    const currentCount = await getCount(projectName);
+    const newCount = Math.max(0, currentCount - 1);
+    await setCount(projectName, newCount);
+    return newCount;
   }
 
   // Initialize upvote buttons
@@ -90,14 +96,12 @@ document.addEventListener('DOMContentLoaded', function() {
       heartIcon.textContent = '♥';
     }
 
-    // Fetch and display the shared count from server
+    // Fetch and display the shared count from Firebase
     try {
       const count = await getCount(projectName);
       voteCount.textContent = count;
-      // Also update localStorage as backup
       localStorage.setItem(`upvote_count_${projectName}`, count);
     } catch (error) {
-      // Use localStorage fallback
       voteCount.textContent = localStorage.getItem(`upvote_count_${projectName}`) || 0;
     }
 
@@ -106,27 +110,44 @@ document.addEventListener('DOMContentLoaded', function() {
       e.preventDefault();
       e.stopPropagation();
 
+      // Disable button during API call
+      btn.disabled = true;
+
       const currentlyVoted = btn.classList.contains('voted');
 
-      if (currentlyVoted) {
-        // Remove vote
-        btn.classList.remove('voted');
-        heartIcon.textContent = '♡';
-        localStorage.setItem(`upvote_${projectName}`, 'false');
+      try {
+        if (currentlyVoted) {
+          // Remove vote
+          btn.classList.remove('voted');
+          heartIcon.textContent = '♡';
+          localStorage.setItem(`upvote_${projectName}`, 'false');
 
-        const newCount = await decrementCount(projectName);
-        voteCount.textContent = newCount;
-        localStorage.setItem(`upvote_count_${projectName}`, newCount);
-      } else {
-        // Add vote
-        btn.classList.add('voted');
-        heartIcon.textContent = '♥';
-        localStorage.setItem(`upvote_${projectName}`, 'true');
+          const newCount = await decrementCount(projectName);
+          voteCount.textContent = newCount;
+          localStorage.setItem(`upvote_count_${projectName}`, newCount);
+        } else {
+          // Add vote
+          btn.classList.add('voted');
+          heartIcon.textContent = '♥';
+          localStorage.setItem(`upvote_${projectName}`, 'true');
 
-        const newCount = await incrementCount(projectName);
-        voteCount.textContent = newCount;
-        localStorage.setItem(`upvote_count_${projectName}`, newCount);
+          const newCount = await incrementCount(projectName);
+          voteCount.textContent = newCount;
+          localStorage.setItem(`upvote_count_${projectName}`, newCount);
+        }
+      } catch (error) {
+        console.error('Vote error:', error);
+        // Revert UI on error
+        if (currentlyVoted) {
+          btn.classList.add('voted');
+          heartIcon.textContent = '♥';
+        } else {
+          btn.classList.remove('voted');
+          heartIcon.textContent = '♡';
+        }
       }
+
+      btn.disabled = false;
     });
   });
 

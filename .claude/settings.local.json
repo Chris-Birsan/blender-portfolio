@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd mobile responsive, upvotes, lightbox navigation, and text centering\n\n- CB Logo: Animated gradient matching header style\n- Mobile: Hamburger menu, responsive grid, adjusted typography\n- Upvotes: Heart buttons with localStorage persistence\n- Lightbox: Arrow navigation, image counter, keyboard support\n- Text: Centered header subtitle and project meta\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(gh repo view:*)",
+      "WebFetch(domain:chris-birsan.github.io)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd text centering, project upvotes, and shared vote counts\n\n- Fixed centering for header subtitle and project-meta text\n- Added upvote buttons to all 8 project pages\n- Implemented shared upvote counts using CountAPI.xyz\n- Fixed pizza.html missing hamburger and script reference\n- Upvotes now sync across all users and between pages\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)",
+      "WebFetch(domain:api.countapi.xyz)",
+      "WebFetch(domain:counterapi.dev)",
+      "WebFetch(domain:api.npoint.io)",
+      "WebFetch(domain:jsonblob.com)",
+      "WebFetch(domain:kvdb.io)"
+    ]
+  }
+}
