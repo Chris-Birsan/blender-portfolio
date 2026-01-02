@@ -72,7 +72,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Firebase Realtime Database URL (free tier)
   // This uses a public Firebase database for shared vote counts
-  const FIREBASE_URL = 'https://blender-portfolio-upvotes-default-rtdb.firebaseio.com';
+  const FIREBASE_URL = 'https://blender-portfolio-default-rtdb.firebaseio.com';
 
   const upvoteButtons = document.querySelectorAll('.upvote-btn');
 
