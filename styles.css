@@ -621,7 +621,7 @@ body {
     padding: 0 16px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 12px;
     z-index: 9999;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
@@ -630,13 +630,20 @@ body {
 
   .hamburger {
     display: flex;
-    margin-right: auto;
+    margin-right: 0;
   }
 
   .nav-brand {
+    position: absolute;
+    right: 16px;
+    top: 0;
+    bottom: 0;
     height: 60px;
-    margin: 0 0 0 auto;
+    margin: 0;
     padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
     text-align: right;
   }
 
