@@ -134,6 +134,7 @@ h1 {
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  border-radius: 8px;
 }
 
 .nav-link::before {
@@ -155,6 +156,7 @@ h1 {
   animation: gradientWave 6s ease infinite;
   transition: left 0.3s ease;
   z-index: -1;
+  border-radius: 8px;  /* ← ADD THIS LINE */
 }
 
 .nav-link:hover::before {
@@ -216,4 +218,187 @@ body {
 
 .project-card-link:hover .view-project {
   color: #764ba2;
+}
+
+
+/* Project Detail Pages */
+.project-detail {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px;
+}
+
+.back-button {
+  display: inline-block;
+  color: #667eea;
+  text-decoration: none;
+  font-size: 16px;
+  margin-bottom: 30px;
+  transition: color 0.3s ease;
+}
+
+.back-button:hover {
+  color: #764ba2;
+}
+
+.project-header {
+  text-align: center;
+  margin-bottom: 50px;
+}
+
+.project-header h1 {
+  font-size: 48px;
+  color: #2c3e50;
+  margin-bottom: 10px;
+}
+
+.project-meta {
+  color: #666;
+  font-size: 18px;
+}
+
+.project-hero video,
+.project-hero img {
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+  display: block;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.project-description {
+  margin-top: 60px;
+}
+
+.project-description h2 {
+  color: #667eea;
+  margin-top: 40px;
+}
+
+.project-description h3 {
+  color: #34495e;
+  margin-top: 30px;
+}
+
+.project-description ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.project-description li {
+  padding: 10px 0;
+  padding-left: 30px;
+  position: relative;
+}
+
+.project-description li::before {
+  content: "▸";
+  position: absolute;
+  left: 0;
+  color: #667eea;
+  font-weight: bold;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  margin-top: 30px;
+}
+
+.gallery-grid img {
+  width: 100%;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+}
+
+.gallery-grid img:hover {
+  transform: scale(1.05);
+}
+
+.project-nav {
+  margin-top: 80px;
+  padding-top: 40px;
+  border-top: 2px solid #e0e0e0;
+  text-align: center;
+}
+
+.next-project {
+  display: inline-block;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  padding: 15px 40px;
+  border-radius: 30px;
+  text-decoration: none;
+  font-size: 18px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.next-project:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+}
+
+
+
+
+/* Lightbox */
+#lightbox {
+  display: none;
+  position: fixed;
+  z-index: 9999;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.95);
+  justify-content: center;
+  align-items: center;
+}
+
+.lightbox-content {
+  max-width: 90%;
+  max-height: 90%;
+  object-fit: contain;
+  animation: lightboxZoom 0.3s ease;
+}
+
+@keyframes lightboxZoom {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 30px;
+  right: 50px;
+  color: white;
+  font-size: 50px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: color 0.3s ease;
+  user-select: none;
+}
+
+.lightbox-close:hover {
+  color: #667eea;
+}
+
+/* Make gallery images clickable */
+.gallery-grid img {
+  cursor: pointer;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.gallery-grid img:hover {
+  transform: scale(1.02);
+  opacity: 0.9;
 }
