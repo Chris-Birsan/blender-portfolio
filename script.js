@@ -24,50 +24,109 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // ═══════════════════════════════════════════════════
-  // UPVOTE FUNCTIONALITY WITH LOCALSTORAGE
+  // UPVOTE FUNCTIONALITY WITH SHARED COUNTS (CountAPI)
   // ═══════════════════════════════════════════════════
+  const NAMESPACE = 'chris-birsan-blender-portfolio';
   const upvoteButtons = document.querySelectorAll('.upvote-btn');
 
-  upvoteButtons.forEach(btn => {
+  // Fetch current count from CountAPI
+  async function getCount(projectName) {
+    try {
+      const response = await fetch(`https://api.countapi.xyz/get/${NAMESPACE}/${projectName}`);
+      const data = await response.json();
+      return data.value || 0;
+    } catch (error) {
+      console.error('Error fetching count:', error);
+      // Fallback to localStorage count
+      return parseInt(localStorage.getItem(`upvote_count_${projectName}`)) || 0;
+    }
+  }
+
+  // Increment count on CountAPI
+  async function incrementCount(projectName) {
+    try {
+      const response = await fetch(`https://api.countapi.xyz/hit/${NAMESPACE}/${projectName}`);
+      const data = await response.json();
+      return data.value || 1;
+    } catch (error) {
+      console.error('Error incrementing count:', error);
+      // Fallback to localStorage
+      const count = (parseInt(localStorage.getItem(`upvote_count_${projectName}`)) || 0) + 1;
+      localStorage.setItem(`upvote_count_${projectName}`, count);
+      return count;
+    }
+  }
+
+  // Decrement count (CountAPI doesn't support decrement, so we use a workaround)
+  async function decrementCount(projectName) {
+    try {
+      // CountAPI doesn't have a native decrement, so we'll use update endpoint
+      const currentCount = await getCount(projectName);
+      const newCount = Math.max(0, currentCount - 1);
+      // Use the update endpoint to set the new value
+      const response = await fetch(`https://api.countapi.xyz/update/${NAMESPACE}/${projectName}?amount=-1`);
+      const data = await response.json();
+      return Math.max(0, data.value || 0);
+    } catch (error) {
+      console.error('Error decrementing count:', error);
+      const count = Math.max(0, (parseInt(localStorage.getItem(`upvote_count_${projectName}`)) || 0) - 1);
+      localStorage.setItem(`upvote_count_${projectName}`, count);
+      return count;
+    }
+  }
+
+  // Initialize upvote buttons
+  upvoteButtons.forEach(async btn => {
     const projectName = btn.dataset.project;
     const heartIcon = btn.querySelector('.heart-icon');
     const voteCount = btn.querySelector('.vote-count');
 
-    // Load saved state from localStorage
-    const isVoted = localStorage.getItem(`upvote_${projectName}`) === 'true';
-    const count = parseInt(localStorage.getItem(`upvote_count_${projectName}`)) || 0;
+    // Check if user has already voted (stored in localStorage)
+    const hasVoted = localStorage.getItem(`upvote_${projectName}`) === 'true';
 
-    // Update UI based on saved state
-    if (isVoted) {
+    // Update UI for voted state
+    if (hasVoted) {
       btn.classList.add('voted');
       heartIcon.textContent = '♥';
     }
-    voteCount.textContent = count;
+
+    // Fetch and display the shared count from server
+    try {
+      const count = await getCount(projectName);
+      voteCount.textContent = count;
+      // Also update localStorage as backup
+      localStorage.setItem(`upvote_count_${projectName}`, count);
+    } catch (error) {
+      // Use localStorage fallback
+      voteCount.textContent = localStorage.getItem(`upvote_count_${projectName}`) || 0;
+    }
 
     // Handle click
-    btn.addEventListener('click', function(e) {
+    btn.addEventListener('click', async function(e) {
       e.preventDefault();
-      e.stopPropagation(); // Prevent navigating to project page
+      e.stopPropagation();
 
       const currentlyVoted = btn.classList.contains('voted');
-      let currentCount = parseInt(voteCount.textContent);
 
       if (currentlyVoted) {
         // Remove vote
         btn.classList.remove('voted');
         heartIcon.textContent = '♡';
-        currentCount = Math.max(0, currentCount - 1);
         localStorage.setItem(`upvote_${projectName}`, 'false');
+
+        const newCount = await decrementCount(projectName);
+        voteCount.textContent = newCount;
+        localStorage.setItem(`upvote_count_${projectName}`, newCount);
       } else {
         // Add vote
         btn.classList.add('voted');
         heartIcon.textContent = '♥';
-        currentCount += 1;
         localStorage.setItem(`upvote_${projectName}`, 'true');
-      }
 
-      voteCount.textContent = currentCount;
-      localStorage.setItem(`upvote_count_${projectName}`, currentCount);
+        const newCount = await incrementCount(projectName);
+        voteCount.textContent = newCount;
+        localStorage.setItem(`upvote_count_${projectName}`, newCount);
+      }
     });
   });
 

@@ -64,6 +64,8 @@ h1 {
     color: rgba(255, 255, 255, 0.9);
     font-size: 20px;
     margin-top: 10px;
+    margin-left: auto;
+    margin-right: auto;
     text-align: center;
   }
 
@@ -298,6 +300,28 @@ body {
   color: #666;
   font-size: 18px;
   text-align: center;
+  max-width: none;
+  margin: 0 auto;
+}
+
+.project-upvote {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.project-upvote .upvote-btn {
+  padding: 12px 24px;
+  font-size: 18px;
+  border-radius: 30px;
+}
+
+.project-upvote .heart-icon {
+  font-size: 24px;
+}
+
+.project-upvote .vote-count {
+  font-size: 18px;
 }
 
 .project-hero video,
