@@ -131,14 +131,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
       // Step 1: Get current count
       const response = await fetch(`${FIREBASE_URL}/${eventPath}.json`);
+      if (!response.ok) {
+        console.warn(`Analytics read failed (${response.status}) at ${eventPath}`);
+        return;
+      }
+
       const currentCount = await response.json() || 0;
 
       // Step 2: Increment and save
-      await fetch(`${FIREBASE_URL}/${eventPath}.json`, {
+      const writeResponse = await fetch(`${FIREBASE_URL}/${eventPath}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(currentCount + 1)
       });
+
+      if (!writeResponse.ok) {
+        console.warn(`Analytics write failed (${writeResponse.status}) at ${eventPath}`);
+      }
 
       // Also log to Firebase Analytics if available (Google's dashboard)
       if (typeof analytics !== 'undefined') {
@@ -149,7 +158,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
 
     } catch (error) {
-      console.error('Analytics logging error:', error);
+      console.warn('Analytics logging error:', error);
       // Silently fail - analytics should never break the main app
     }
   }
@@ -164,15 +173,24 @@ document.addEventListener('DOMContentLoaded', function() {
       const visitPath = `analytics/events/${today}/total_visits`;
 
       const response = await fetch(`${FIREBASE_URL}/${visitPath}.json`);
+      if (!response.ok) {
+        console.warn(`Analytics read failed (${response.status}) at ${visitPath}`);
+        return;
+      }
+
       const currentCount = await response.json() || 0;
 
-      await fetch(`${FIREBASE_URL}/${visitPath}.json`, {
+      const writeResponse = await fetch(`${FIREBASE_URL}/${visitPath}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(currentCount + 1)
       });
+
+      if (!writeResponse.ok) {
+        console.warn(`Analytics write failed (${writeResponse.status}) at ${visitPath}`);
+      }
     } catch (error) {
-      console.error('Visit logging error:', error);
+      console.warn('Visit logging error:', error);
     }
   }
 
@@ -228,6 +246,25 @@ document.addEventListener('DOMContentLoaded', function() {
       );
     }
   });
+
+  // One-time check to see if analytics writes are blocked
+  (async function checkAnalyticsWriteAccess() {
+    try {
+      const today = getTodayDate();
+      const testPath = `analytics/events/${today}/_write_check`;
+      const response = await fetch(`${FIREBASE_URL}/${testPath}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Date.now())
+      });
+
+      if (!response.ok && (response.status === 401 || response.status === 403)) {
+        console.warn(`Analytics write blocked (${response.status}) at ${testPath}`);
+      }
+    } catch (error) {
+      console.warn('Analytics write check failed:', error);
+    }
+  })();
 
   // ─────────────────────────────────────────────────────
   // IP-BASED VOTE LIMITING FUNCTIONS
@@ -288,7 +325,7 @@ document.addEventListener('DOMContentLoaded', function() {
    * Check if an IP has already voted on a project
    *
    * How it works:
-   * 1. Make GET request to Firebase at /votedIPs/{project}/{sanitizedIP}
+   * 1. Make GET request to Firebase at /votes/{project}/voters/{sanitizedIP}
    * 2. If the path exists and equals true → user has voted
    * 3. If the path doesn't exist → returns null → user hasn't voted
    *
@@ -300,11 +337,10 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
       const sanitizedIP = sanitizeIP(userIP);
       const response = await fetch(
-        `${FIREBASE_URL}/votedIPs/${projectName}/${sanitizedIP}.json`
+        `${FIREBASE_URL}/votes/${projectName}/voters/${sanitizedIP}.json`
       );
       if (!response.ok) throw new Error('Firebase read error');
       const data = await response.json();
-      // data is `true` if IP exists, `null` if it doesn't
       return data === true;
     } catch (error) {
       console.error('Error checking vote status:', error);
@@ -314,11 +350,11 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   /**
-   * Record that an IP has voted on a project
+   * Record current voter state on a project
    *
    * How it works:
    * - PUT request writes data to a specific path
-   * - We write `true` at /votedIPs/{project}/{sanitizedIP}
+   * - We write boolean state at /votes/{project}/voters/{sanitizedIP}
    *
    * Why PUT instead of POST?
    * - PUT overwrites at exact path (idempotent - same result if called twice)
@@ -327,52 +363,22 @@ document.addEventListener('DOMContentLoaded', function() {
    * Security note:
    * This is client-side code, so technically users could bypass it.
    * The REAL protection is Firebase Security Rules (server-side).
-   * We'll set rules so an IP can only be written ONCE per project.
    */
-  async function recordVote(projectName, userIP) {
+  async function setVoterState(projectName, userIP, state) {
     try {
       const sanitizedIP = sanitizeIP(userIP);
       const response = await fetch(
-        `${FIREBASE_URL}/votedIPs/${projectName}/${sanitizedIP}.json`,
+        `${FIREBASE_URL}/votes/${projectName}/voters/${sanitizedIP}.json`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(true)
+          body: JSON.stringify(state)
         }
       );
-      if (!response.ok) throw new Error('Firebase write error');
+      if (!response.ok) throw new Error(`Firebase write error (${response.status})`);
       return true;
     } catch (error) {
-      console.error('Error recording vote:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Remove vote record for an IP (for toggle/unvote functionality)
-   *
-   * How it works:
-   * - DELETE request removes data at the specified path
-   * - Removes the entry at /votedIPs/{project}/{sanitizedIP}
-   *
-   * Security consideration:
-   * This allows users to "undo" their vote. In a production app,
-   * you might want to prevent this to avoid vote manipulation.
-   * For a portfolio, toggle voting is fine and provides better UX.
-   */
-  async function removeVoteRecord(projectName, userIP) {
-    try {
-      const sanitizedIP = sanitizeIP(userIP);
-      const response = await fetch(
-        `${FIREBASE_URL}/votedIPs/${projectName}/${sanitizedIP}.json`,
-        {
-          method: 'DELETE'
-        }
-      );
-      if (!response.ok) throw new Error('Firebase delete error');
-      return true;
-    } catch (error) {
-      console.error('Error removing vote record:', error);
+      console.error('Error updating voter state:', error);
       return false;
     }
   }
@@ -382,9 +388,12 @@ document.addEventListener('DOMContentLoaded', function() {
   // Fetch current count from Firebase
   async function getCount(projectName) {
     try {
-      const response = await fetch(`${FIREBASE_URL}/votes/${projectName}.json`);
+      const response = await fetch(`${FIREBASE_URL}/votes/${projectName}/count.json`);
       if (!response.ok) throw new Error('Network error');
       const data = await response.json();
+      if (typeof data === 'object' && data !== null) {
+        return data.count || 0;
+      }
       return data || 0;
     } catch (error) {
       console.error('Error fetching count:', error);
@@ -396,7 +405,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Update count on Firebase
   async function setCount(projectName, count) {
     try {
-      const response = await fetch(`${FIREBASE_URL}/votes/${projectName}.json`, {
+      const response = await fetch(`${FIREBASE_URL}/votes/${projectName}/count.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(count)
@@ -506,82 +515,39 @@ document.addEventListener('DOMContentLoaded', function() {
           return;
         }
 
-        const currentlyVoted = btn.classList.contains('voted');
+        let serverSaysVoted = false;
 
         try {
-          if (currentlyVoted) {
-            // ═══════════════════════════════════════════════════
-            // REMOVING A VOTE (unvote)
-            // ═══════════════════════════════════════════════════
+          serverSaysVoted = await hasVotedOnServer(projectName, currentIP);
+          const targetVotedState = !serverSaysVoted;
 
-            // Double-check server state (in case of sync issues)
-            const serverSaysVoted = await hasVotedOnServer(projectName, currentIP);
-            if (!serverSaysVoted) {
-              // Server says we haven't voted - sync UI and exit
-              btn.classList.remove('voted');
-              heartIcon.textContent = '♡';
-              localStorage.setItem(`upvote_${projectName}`, 'false');
-              btn.disabled = false;
-              return;
-            }
+          // Optimistic UI update (feels snappier)
+          btn.classList.toggle('voted', targetVotedState);
+          heartIcon.textContent = targetVotedState ? '♥' : '♡';
 
-            // Optimistic UI update (feels snappier)
-            btn.classList.remove('voted');
-            heartIcon.textContent = '♡';
-
-            // Update server: decrement count and remove IP record
-            const newCount = await decrementCount(projectName);
-            await removeVoteRecord(projectName, currentIP);
-
-            // Update localStorage (backup/sync)
-            localStorage.setItem(`upvote_${projectName}`, 'false');
-            localStorage.setItem(`upvote_count_${projectName}`, newCount);
-            voteCount.textContent = newCount;
-
-          } else {
-            // ═══════════════════════════════════════════════════
-            // ADDING A VOTE
-            // ═══════════════════════════════════════════════════
-
-            // Check if already voted on server (prevents double-voting)
-            const alreadyVoted = await hasVotedOnServer(projectName, currentIP);
-            if (alreadyVoted) {
-              // Server says we already voted - sync UI to match
-              btn.classList.add('voted');
-              heartIcon.textContent = '♥';
-              localStorage.setItem(`upvote_${projectName}`, 'true');
-              alert('You have already voted for this project!');
-              btn.disabled = false;
-              return;
-            }
-
-            // Optimistic UI update
-            btn.classList.add('voted');
-            heartIcon.textContent = '♥';
-
-            // Update server: increment count and record IP
-            const newCount = await incrementCount(projectName);
-            await recordVote(projectName, currentIP);
+          let newCount = 0;
+          if (targetVotedState) {
+            newCount = await incrementCount(projectName);
+            await setVoterState(projectName, currentIP, true);
 
             // Track upvote in analytics (for our custom dashboard)
             // This is a KEY METRIC - conversion from view to engagement
             logCustomAnalyticsEvent('upvotes', projectName);
-
-            // Update localStorage
-            localStorage.setItem(`upvote_${projectName}`, 'true');
-            localStorage.setItem(`upvote_count_${projectName}`, newCount);
-            voteCount.textContent = newCount;
+          } else {
+            newCount = await decrementCount(projectName);
+            await setVoterState(projectName, currentIP, false);
           }
+
+          // Update localStorage
+          localStorage.setItem(`upvote_${projectName}`, targetVotedState.toString());
+          localStorage.setItem(`upvote_count_${projectName}`, newCount);
+          voteCount.textContent = newCount;
+
         } catch (error) {
           console.error('Vote error:', error);
           // Revert UI on error
-          if (currentlyVoted) {
-            btn.classList.add('voted');
-            heartIcon.textContent = '♥';
-          } else {
-            btn.classList.remove('voted');
-            heartIcon.textContent = '♡';
-          }
+          btn.classList.toggle('voted', serverSaysVoted);
+          heartIcon.textContent = serverSaysVoted ? '♥' : '♡';
           alert('An error occurred while voting. Please try again.');
         }
 
