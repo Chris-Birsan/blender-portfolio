@@ -74,6 +74,154 @@ document.addEventListener('DOMContentLoaded', function() {
   // This uses a public Firebase database for shared vote counts
   const FIREBASE_URL = 'https://blender-portfolio-default-rtdb.firebaseio.com';
 
+  // ─────────────────────────────────────────────────────
+  // IP-BASED VOTE LIMITING FUNCTIONS
+  // ─────────────────────────────────────────────────────
+  // Why IP limiting? Without it, users can:
+  // - Clear localStorage and vote again
+  // - Use different browsers to vote multiple times
+  // - Use incognito mode to bypass local tracking
+  // IP addresses are tracked server-side in Firebase, making them much harder to bypass.
+
+  // Cache the user's IP to avoid repeated API calls
+  let cachedUserIP = null;
+
+  /**
+   * Get user's IP address from ipify.org
+   *
+   * How it works:
+   * 1. Check if we already fetched the IP this session (cached)
+   * 2. If not, call ipify.org API which returns: { "ip": "192.168.1.1" }
+   * 3. Cache the result so future calls are instant
+   *
+   * Why ipify.org?
+   * - Free, no API key required
+   * - Simple JSON response
+   * - Reliable uptime
+   * - Returns public IP (what servers see, not local 192.168.x.x)
+   */
+  async function getUserIP() {
+    // Return cached IP if available (performance optimization)
+    if (cachedUserIP) {
+      return cachedUserIP;
+    }
+
+    try {
+      const response = await fetch('https://api.ipify.org?format=json');
+      if (!response.ok) throw new Error('ipify API error');
+      const data = await response.json();
+      cachedUserIP = data.ip;
+      return cachedUserIP;
+    } catch (error) {
+      console.error('Error getting IP:', error);
+      // Fallback: return null, caller should handle this gracefully
+      return null;
+    }
+  }
+
+  /**
+   * Sanitize IP address for use as Firebase key
+   *
+   * Firebase paths cannot contain: . $ # [ ] /
+   * So we replace periods with underscores: 192.168.1.1 → 192_168_1_1
+   */
+  function sanitizeIP(ip) {
+    return ip.replace(/\./g, '_');
+  }
+
+  /**
+   * Check if an IP has already voted on a project
+   *
+   * How it works:
+   * 1. Make GET request to Firebase at /votedIPs/{project}/{sanitizedIP}
+   * 2. If the path exists and equals true → user has voted
+   * 3. If the path doesn't exist → returns null → user hasn't voted
+   *
+   * Firebase REST API:
+   * - GET request = "read this data"
+   * - Response is JSON (the value at that path, or null if doesn't exist)
+   */
+  async function hasVotedOnServer(projectName, userIP) {
+    try {
+      const sanitizedIP = sanitizeIP(userIP);
+      const response = await fetch(
+        `${FIREBASE_URL}/votedIPs/${projectName}/${sanitizedIP}.json`
+      );
+      if (!response.ok) throw new Error('Firebase read error');
+      const data = await response.json();
+      // data is `true` if IP exists, `null` if it doesn't
+      return data === true;
+    } catch (error) {
+      console.error('Error checking vote status:', error);
+      // On error, fall back to localStorage (degraded but functional)
+      return localStorage.getItem(`upvote_${projectName}`) === 'true';
+    }
+  }
+
+  /**
+   * Record that an IP has voted on a project
+   *
+   * How it works:
+   * - PUT request writes data to a specific path
+   * - We write `true` at /votedIPs/{project}/{sanitizedIP}
+   *
+   * Why PUT instead of POST?
+   * - PUT overwrites at exact path (idempotent - same result if called twice)
+   * - POST creates new child with auto-generated ID (not what we want)
+   *
+   * Security note:
+   * This is client-side code, so technically users could bypass it.
+   * The REAL protection is Firebase Security Rules (server-side).
+   * We'll set rules so an IP can only be written ONCE per project.
+   */
+  async function recordVote(projectName, userIP) {
+    try {
+      const sanitizedIP = sanitizeIP(userIP);
+      const response = await fetch(
+        `${FIREBASE_URL}/votedIPs/${projectName}/${sanitizedIP}.json`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(true)
+        }
+      );
+      if (!response.ok) throw new Error('Firebase write error');
+      return true;
+    } catch (error) {
+      console.error('Error recording vote:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Remove vote record for an IP (for toggle/unvote functionality)
+   *
+   * How it works:
+   * - DELETE request removes data at the specified path
+   * - Removes the entry at /votedIPs/{project}/{sanitizedIP}
+   *
+   * Security consideration:
+   * This allows users to "undo" their vote. In a production app,
+   * you might want to prevent this to avoid vote manipulation.
+   * For a portfolio, toggle voting is fine and provides better UX.
+   */
+  async function removeVoteRecord(projectName, userIP) {
+    try {
+      const sanitizedIP = sanitizeIP(userIP);
+      const response = await fetch(
+        `${FIREBASE_URL}/votedIPs/${projectName}/${sanitizedIP}.json`,
+        {
+          method: 'DELETE'
+        }
+      );
+      if (!response.ok) throw new Error('Firebase delete error');
+      return true;
+    } catch (error) {
+      console.error('Error removing vote record:', error);
+      return false;
+    }
+  }
+
   const upvoteButtons = document.querySelectorAll('.upvote-btn');
 
   // Fetch current count from Firebase
@@ -124,75 +272,167 @@ document.addEventListener('DOMContentLoaded', function() {
     return newCount;
   }
 
-  // Initialize upvote buttons
-  upvoteButtons.forEach(async btn => {
-    const projectName = btn.dataset.project;
-    const heartIcon = btn.querySelector('.heart-icon');
-    const voteCount = btn.querySelector('.vote-count');
+  // ─────────────────────────────────────────────────────
+  // INITIALIZE UPVOTE BUTTONS
+  // ─────────────────────────────────────────────────────
+  // This runs once when the page loads.
+  // We need to:
+  // 1. Get the user's IP (for vote checking)
+  // 2. For each button: check if this IP has voted, set UI accordingly
+  // 3. Attach click handlers
 
-    // Check if user has already voted (stored in localStorage)
-    const hasVoted = localStorage.getItem(`upvote_${projectName}`) === 'true';
+  async function initializeUpvoteButtons() {
+    // Step 1: Get user's IP address upfront
+    // We do this ONCE and reuse it for all buttons (performance)
+    const userIP = await getUserIP();
 
-    // Update UI for voted state
-    if (hasVoted) {
-      btn.classList.add('voted');
-      heartIcon.textContent = '♥';
+    // If we couldn't get IP, we'll fall back to localStorage-only mode
+    // This happens if ipify.org is blocked (ad blockers) or user is offline
+    if (!userIP) {
+      console.warn('Could not get user IP. Falling back to localStorage-only mode.');
     }
 
-    // Fetch and display the shared count from Firebase
-    try {
-      const count = await getCount(projectName);
-      voteCount.textContent = count;
-      localStorage.setItem(`upvote_count_${projectName}`, count);
-    } catch (error) {
-      voteCount.textContent = localStorage.getItem(`upvote_count_${projectName}`) || 0;
-    }
+    // Step 2: Initialize each button
+    upvoteButtons.forEach(async btn => {
+      const projectName = btn.dataset.project;
+      const heartIcon = btn.querySelector('.heart-icon');
+      const voteCount = btn.querySelector('.vote-count');
 
-    // Handle click
-    btn.addEventListener('click', async function(e) {
-      e.preventDefault();
-      e.stopPropagation();
+      // Determine vote state:
+      // Priority 1: Check Firebase (server-side, authoritative)
+      // Priority 2: Fall back to localStorage if Firebase check fails
+      let hasVoted = false;
 
-      // Disable button during API call
-      btn.disabled = true;
-
-      const currentlyVoted = btn.classList.contains('voted');
-
-      try {
-        if (currentlyVoted) {
-          // Remove vote
-          btn.classList.remove('voted');
-          heartIcon.textContent = '♡';
-          localStorage.setItem(`upvote_${projectName}`, 'false');
-
-          const newCount = await decrementCount(projectName);
-          voteCount.textContent = newCount;
-          localStorage.setItem(`upvote_count_${projectName}`, newCount);
-        } else {
-          // Add vote
-          btn.classList.add('voted');
-          heartIcon.textContent = '♥';
-          localStorage.setItem(`upvote_${projectName}`, 'true');
-
-          const newCount = await incrementCount(projectName);
-          voteCount.textContent = newCount;
-          localStorage.setItem(`upvote_count_${projectName}`, newCount);
-        }
-      } catch (error) {
-        console.error('Vote error:', error);
-        // Revert UI on error
-        if (currentlyVoted) {
-          btn.classList.add('voted');
-          heartIcon.textContent = '♥';
-        } else {
-          btn.classList.remove('voted');
-          heartIcon.textContent = '♡';
-        }
+      if (userIP) {
+        // Check server-side vote status
+        hasVoted = await hasVotedOnServer(projectName, userIP);
+        // Sync localStorage with server state (keeps them in sync)
+        localStorage.setItem(`upvote_${projectName}`, hasVoted.toString());
+      } else {
+        // Fallback to localStorage if no IP available
+        hasVoted = localStorage.getItem(`upvote_${projectName}`) === 'true';
       }
 
-      btn.disabled = false;
+      // Update UI to reflect vote state
+      if (hasVoted) {
+        btn.classList.add('voted');
+        heartIcon.textContent = '♥';
+      } else {
+        btn.classList.remove('voted');
+        heartIcon.textContent = '♡';
+      }
+
+      // Fetch and display the vote count from Firebase
+      try {
+        const count = await getCount(projectName);
+        voteCount.textContent = count;
+        localStorage.setItem(`upvote_count_${projectName}`, count);
+      } catch (error) {
+        voteCount.textContent = localStorage.getItem(`upvote_count_${projectName}`) || 0;
+      }
+
+      // ─────────────────────────────────────────────────────
+      // CLICK HANDLER - The main voting logic
+      // ─────────────────────────────────────────────────────
+      btn.addEventListener('click', async function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Disable button during API call (prevents double-clicks)
+        btn.disabled = true;
+
+        // Get fresh IP in case it changed (rare, but possible)
+        const currentIP = await getUserIP();
+
+        if (!currentIP) {
+          // Can't verify identity - show error and abort
+          alert('Unable to verify your identity. Please check your internet connection and try again.');
+          btn.disabled = false;
+          return;
+        }
+
+        const currentlyVoted = btn.classList.contains('voted');
+
+        try {
+          if (currentlyVoted) {
+            // ═══════════════════════════════════════════════════
+            // REMOVING A VOTE (unvote)
+            // ═══════════════════════════════════════════════════
+
+            // Double-check server state (in case of sync issues)
+            const serverSaysVoted = await hasVotedOnServer(projectName, currentIP);
+            if (!serverSaysVoted) {
+              // Server says we haven't voted - sync UI and exit
+              btn.classList.remove('voted');
+              heartIcon.textContent = '♡';
+              localStorage.setItem(`upvote_${projectName}`, 'false');
+              btn.disabled = false;
+              return;
+            }
+
+            // Optimistic UI update (feels snappier)
+            btn.classList.remove('voted');
+            heartIcon.textContent = '♡';
+
+            // Update server: decrement count and remove IP record
+            const newCount = await decrementCount(projectName);
+            await removeVoteRecord(projectName, currentIP);
+
+            // Update localStorage (backup/sync)
+            localStorage.setItem(`upvote_${projectName}`, 'false');
+            localStorage.setItem(`upvote_count_${projectName}`, newCount);
+            voteCount.textContent = newCount;
+
+          } else {
+            // ═══════════════════════════════════════════════════
+            // ADDING A VOTE
+            // ═══════════════════════════════════════════════════
+
+            // Check if already voted on server (prevents double-voting)
+            const alreadyVoted = await hasVotedOnServer(projectName, currentIP);
+            if (alreadyVoted) {
+              // Server says we already voted - sync UI to match
+              btn.classList.add('voted');
+              heartIcon.textContent = '♥';
+              localStorage.setItem(`upvote_${projectName}`, 'true');
+              alert('You have already voted for this project!');
+              btn.disabled = false;
+              return;
+            }
+
+            // Optimistic UI update
+            btn.classList.add('voted');
+            heartIcon.textContent = '♥';
+
+            // Update server: increment count and record IP
+            const newCount = await incrementCount(projectName);
+            await recordVote(projectName, currentIP);
+
+            // Update localStorage
+            localStorage.setItem(`upvote_${projectName}`, 'true');
+            localStorage.setItem(`upvote_count_${projectName}`, newCount);
+            voteCount.textContent = newCount;
+          }
+        } catch (error) {
+          console.error('Vote error:', error);
+          // Revert UI on error
+          if (currentlyVoted) {
+            btn.classList.add('voted');
+            heartIcon.textContent = '♥';
+          } else {
+            btn.classList.remove('voted');
+            heartIcon.textContent = '♡';
+          }
+          alert('An error occurred while voting. Please try again.');
+        }
+
+        btn.disabled = false;
+      });
     });
-  });
+  }
+
+  // Run initialization
+  initializeUpvoteButtons();
 
   // ═══════════════════════════════════════════════════
   // LIGHTBOX FUNCTIONALITY WITH NAVIGATION
