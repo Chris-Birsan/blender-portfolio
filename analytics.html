@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analytics Dashboard - Christopher's Portfolio</title>
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- Chart.js for data visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <style>
+    /* ═══════════════════════════════════════════════════
+       ANALYTICS DASHBOARD STYLES
+       ═══════════════════════════════════════════════════ */
+
+    .analytics-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    .analytics-header {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding: 2rem;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border-radius: 12px;
+      border: 1px solid #333;
+    }
+
+    .analytics-header h1 {
+      color: #00d4ff;
+      margin-bottom: 0.5rem;
+      font-size: 2rem;
+    }
+
+    .analytics-header p {
+      color: #888;
+      margin: 0;
+    }
+
+    .live-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(255, 0, 0, 0.1);
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      color: #ff4444;
+      margin-top: 1rem;
+    }
+
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      background: #ff4444;
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.2); }
+    }
+
+    /* Hero Metrics Grid */
+    .hero-metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .metric-card {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .metric-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 25px rgba(0, 212, 255, 0.15);
+    }
+
+    .metric-value {
+      font-size: 2.5rem;
+      font-weight: bold;
+      color: #00d4ff;
+      margin-bottom: 0.5rem;
+    }
+
+    .metric-label {
+      color: #888;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .metric-change {
+      font-size: 0.8rem;
+      margin-top: 0.5rem;
+    }
+
+    .metric-change.positive { color: #00ff88; }
+    .metric-change.negative { color: #ff4444; }
+
+    /* Chart Section */
+    .chart-section {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .chart-section h2 {
+      color: #fff;
+      margin-bottom: 1rem;
+      font-size: 1.3rem;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 300px;
+    }
+
+    /* Leaderboard */
+    .leaderboard {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .leaderboard h2 {
+      color: #fff;
+      margin-bottom: 1rem;
+      font-size: 1.3rem;
+    }
+
+    .leaderboard-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .leaderboard-table th,
+    .leaderboard-table td {
+      padding: 1rem;
+      text-align: left;
+      border-bottom: 1px solid #333;
+    }
+
+    .leaderboard-table th {
+      color: #888;
+      font-weight: normal;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .leaderboard-table td {
+      color: #fff;
+    }
+
+    .leaderboard-table tr:hover {
+      background: rgba(0, 212, 255, 0.05);
+    }
+
+    .rank {
+      font-weight: bold;
+      color: #00d4ff;
+    }
+
+    .rank-1 { color: #ffd700; }
+    .rank-2 { color: #c0c0c0; }
+    .rank-3 { color: #cd7f32; }
+
+    .project-name {
+      font-weight: 500;
+    }
+
+    .conversion-rate {
+      color: #00ff88;
+      font-weight: bold;
+    }
+
+    .conversion-bar {
+      width: 100px;
+      height: 8px;
+      background: #333;
+      border-radius: 4px;
+      overflow: hidden;
+      display: inline-block;
+      vertical-align: middle;
+      margin-left: 0.5rem;
+    }
+
+    .conversion-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #00d4ff, #00ff88);
+      border-radius: 4px;
+      transition: width 0.5s ease;
+    }
+
+    /* Refresh Button */
+    .refresh-btn {
+      background: linear-gradient(135deg, #00d4ff 0%, #00ff88 100%);
+      color: #000;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .refresh-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(0, 212, 255, 0.4);
+    }
+
+    .refresh-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Loading State */
+    .loading {
+      text-align: center;
+      padding: 2rem;
+      color: #888;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #333;
+      border-top-color: #00d4ff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Password Modal */
+    .password-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .password-modal.hidden {
+      display: none;
+    }
+
+    .password-box {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 2rem;
+      text-align: center;
+      max-width: 400px;
+    }
+
+    .password-box h2 {
+      color: #fff;
+      margin-bottom: 1rem;
+    }
+
+    .password-box input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #333;
+      border-radius: 8px;
+      background: #0a0a0f;
+      color: #fff;
+      margin-bottom: 1rem;
+      font-size: 1rem;
+    }
+
+    .password-box input:focus {
+      outline: none;
+      border-color: #00d4ff;
+    }
+
+    .password-box button {
+      width: 100%;
+      padding: 0.75rem;
+      background: linear-gradient(135deg, #00d4ff 0%, #00ff88 100%);
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 1rem;
+    }
+
+    .password-error {
+      color: #ff4444;
+      margin-top: 1rem;
+      display: none;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .analytics-container {
+        padding: 1rem;
+      }
+
+      .hero-metrics {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .metric-value {
+        font-size: 1.8rem;
+      }
+
+      .leaderboard-table {
+        font-size: 0.85rem;
+      }
+
+      .conversion-bar {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Password Protection Modal -->
+  <div class="password-modal" id="passwordModal">
+    <div class="password-box">
+      <h2>Analytics Dashboard</h2>
+      <p style="color: #888; margin-bottom: 1.5rem;">Enter password to view analytics</p>
+      <input type="password" id="passwordInput" placeholder="Password" autofocus>
+      <button onclick="checkPassword()">Access Dashboard</button>
+      <p class="password-error" id="passwordError">Incorrect password</p>
+    </div>
+  </div>
+
+  <!-- Main Dashboard Content -->
+  <div class="analytics-container" id="dashboardContent" style="display: none;">
+
+    <!-- Header -->
+    <div class="analytics-header">
+      <h1>Portfolio Analytics Dashboard</h1>
+      <p>Real-time engagement metrics for your Blender projects</p>
+      <div class="live-indicator">
+        <span class="live-dot"></span>
+        LIVE DATA
+      </div>
+    </div>
+
+    <!-- Hero Metrics -->
+    <div class="hero-metrics">
+      <div class="metric-card">
+        <div class="metric-value" id="totalVisits">-</div>
+        <div class="metric-label">Total Visits Today</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-value" id="totalViews">-</div>
+        <div class="metric-label">Project Views Today</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-value" id="totalUpvotes">-</div>
+        <div class="metric-label">Upvotes Today</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-value" id="conversionRate">-</div>
+        <div class="metric-label">Avg Conversion Rate</div>
+      </div>
+    </div>
+
+    <!-- 7-Day Trend Chart -->
+    <div class="chart-section">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h2>7-Day Trend</h2>
+        <button class="refresh-btn" onclick="refreshData()">Refresh Data</button>
+      </div>
+      <div class="chart-container">
+        <canvas id="trendChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Project Leaderboard -->
+    <div class="leaderboard">
+      <h2>Project Leaderboard</h2>
+      <p style="color: #888; margin-bottom: 1rem; font-size: 0.9rem;">
+        Ranked by view-to-upvote conversion rate (engagement quality)
+      </p>
+      <table class="leaderboard-table">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Project</th>
+            <th>Views</th>
+            <th>Upvotes</th>
+            <th>Conversion Rate</th>
+          </tr>
+        </thead>
+        <tbody id="leaderboardBody">
+          <tr>
+            <td colspan="5" class="loading">
+              <div class="spinner"></div>
+              Loading data...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Footer -->
+    <div style="text-align: center; color: #666; font-size: 0.85rem; margin-top: 2rem;">
+      <p>Data refreshes in real-time from Firebase Realtime Database</p>
+      <p style="margin-top: 0.5rem;">
+        <a href="index.html" style="color: #00d4ff;">← Back to Portfolio</a>
+      </p>
+    </div>
+
+  </div>
+
+  <script>
+    // ═══════════════════════════════════════════════════
+    // ANALYTICS DASHBOARD JAVASCRIPT
+    // ═══════════════════════════════════════════════════
+
+    const FIREBASE_URL = 'https://blender-portfolio-default-rtdb.firebaseio.com';
+
+    // All 8 projects in your portfolio
+    const PROJECTS = ['dungeon', 'rocketship', 'ak47', 'awp', 'pizza', 'mouse', 'house', 'lighthouse'];
+
+    // Chart.js instance (so we can update it)
+    let trendChart = null;
+
+    // ─────────────────────────────────────────────────────
+    // PASSWORD PROTECTION
+    // ─────────────────────────────────────────────────────
+    // Simple client-side password (not secure for sensitive data,
+    // but fine for a portfolio analytics page)
+
+    const DASHBOARD_PASSWORD = 'analytics123'; // Change this to your password!
+
+    function checkPassword() {
+      const input = document.getElementById('passwordInput').value;
+      const error = document.getElementById('passwordError');
+
+      if (input === DASHBOARD_PASSWORD) {
+        // Correct password - show dashboard
+        document.getElementById('passwordModal').classList.add('hidden');
+        document.getElementById('dashboardContent').style.display = 'block';
+
+        // Store in sessionStorage so they don't have to re-enter during this session
+        sessionStorage.setItem('analyticsAuth', 'true');
+
+        // Load the data
+        loadAllData();
+      } else {
+        // Wrong password
+        error.style.display = 'block';
+        document.getElementById('passwordInput').value = '';
+      }
+    }
+
+    // Allow Enter key to submit password
+    document.getElementById('passwordInput').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        checkPassword();
+      }
+    });
+
+    // Check if already authenticated this session
+    if (sessionStorage.getItem('analyticsAuth') === 'true') {
+      document.getElementById('passwordModal').classList.add('hidden');
+      document.getElementById('dashboardContent').style.display = 'block';
+      loadAllData();
+    }
+
+    // ─────────────────────────────────────────────────────
+    // DATA FETCHING
+    // ─────────────────────────────────────────────────────
+
+    /**
+     * Get date string in YYYY-MM-DD format
+     * @param {number} daysAgo - Number of days in the past (0 = today)
+     */
+    function getDateString(daysAgo = 0) {
+      const date = new Date();
+      date.setDate(date.getDate() - daysAgo);
+      return date.toISOString().split('T')[0];
+    }
+
+    /**
+     * Fetch analytics data for a specific date
+     */
+    async function fetchDayData(dateStr) {
+      try {
+        const response = await fetch(`${FIREBASE_URL}/analytics/events/${dateStr}.json`);
+        const data = await response.json();
+        return data || {};
+      } catch (error) {
+        console.error('Error fetching data for', dateStr, error);
+        return {};
+      }
+    }
+
+    /**
+     * Fetch vote counts for all projects
+     */
+    async function fetchVoteCounts() {
+      try {
+        const response = await fetch(`${FIREBASE_URL}/votes.json`);
+        const data = await response.json();
+        return data || {};
+      } catch (error) {
+        console.error('Error fetching vote counts:', error);
+        return {};
+      }
+    }
+
+    // ─────────────────────────────────────────────────────
+    // DATA PROCESSING
+    // ─────────────────────────────────────────────────────
+
+    /**
+     * Calculate totals from day data
+     */
+    function calculateTotals(dayData) {
+      const views = dayData.project_views || {};
+      const upvotes = dayData.upvotes || {};
+
+      let totalViews = 0;
+      let totalUpvotes = 0;
+
+      PROJECTS.forEach(project => {
+        totalViews += views[project] || 0;
+        totalUpvotes += upvotes[project] || 0;
+      });
+
+      return {
+        visits: dayData.total_visits || 0,
+        views: totalViews,
+        upvotes: totalUpvotes,
+        conversionRate: totalViews > 0 ? ((totalUpvotes / totalViews) * 100).toFixed(1) : 0
+      };
+    }
+
+    /**
+     * Build leaderboard data with conversion rates
+     *
+     * CONCEPT: Conversion Rate
+     * Conversion rate = (Desired action / Total opportunity) × 100
+     *
+     * In gaming: Kill rate = Kills / Encounters
+     * In e-commerce: Purchase rate = Purchases / Visits
+     * For us: Upvote rate = Upvotes / Views
+     */
+    function buildLeaderboard(dayData) {
+      const views = dayData.project_views || {};
+      const upvotes = dayData.upvotes || {};
+
+      const leaderboard = PROJECTS.map(project => {
+        const projectViews = views[project] || 0;
+        const projectUpvotes = upvotes[project] || 0;
+        const conversionRate = projectViews > 0
+          ? ((projectUpvotes / projectViews) * 100).toFixed(1)
+          : 0;
+
+        return {
+          name: project,
+          views: projectViews,
+          upvotes: projectUpvotes,
+          conversionRate: parseFloat(conversionRate)
+        };
+      });
+
+      // Sort by conversion rate (highest first)
+      leaderboard.sort((a, b) => b.conversionRate - a.conversionRate);
+
+      return leaderboard;
+    }
+
+    // ─────────────────────────────────────────────────────
+    // UI RENDERING
+    // ─────────────────────────────────────────────────────
+
+    /**
+     * Update hero metrics display
+     */
+    function renderHeroMetrics(totals) {
+      document.getElementById('totalVisits').textContent = totals.visits;
+      document.getElementById('totalViews').textContent = totals.views;
+      document.getElementById('totalUpvotes').textContent = totals.upvotes;
+      document.getElementById('conversionRate').textContent = totals.conversionRate + '%';
+    }
+
+    /**
+     * Render the leaderboard table
+     */
+    function renderLeaderboard(leaderboard) {
+      const tbody = document.getElementById('leaderboardBody');
+
+      if (leaderboard.every(p => p.views === 0)) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" style="text-align: center; color: #888; padding: 2rem;">
+              No data yet. Visit your portfolio to generate analytics!
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = leaderboard.map((project, index) => {
+        const rank = index + 1;
+        const rankClass = rank <= 3 ? `rank-${rank}` : '';
+        const displayName = project.name.charAt(0).toUpperCase() + project.name.slice(1);
+
+        return `
+          <tr>
+            <td><span class="rank ${rankClass}">#${rank}</span></td>
+            <td class="project-name">${displayName}</td>
+            <td>${project.views}</td>
+            <td>${project.upvotes}</td>
+            <td>
+              <span class="conversion-rate">${project.conversionRate}%</span>
+              <div class="conversion-bar">
+                <div class="conversion-fill" style="width: ${Math.min(project.conversionRate, 100)}%"></div>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    /**
+     * Render the 7-day trend chart
+     *
+     * CONCEPT: Time-Series Visualization
+     * Line charts are perfect for showing trends over time.
+     * The X-axis is time (days), Y-axis is the metric (views).
+     */
+    async function renderTrendChart(last7Days) {
+      const ctx = document.getElementById('trendChart').getContext('2d');
+
+      // Extract labels (dates) and data (views)
+      const labels = last7Days.map(d => {
+        const date = new Date(d.date);
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      });
+
+      const viewsData = last7Days.map(d => d.totals.views);
+      const upvotesData = last7Days.map(d => d.totals.upvotes);
+      const visitsData = last7Days.map(d => d.totals.visits);
+
+      // Destroy existing chart if it exists
+      if (trendChart) {
+        trendChart.destroy();
+      }
+
+      // Create new chart
+      trendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Page Visits',
+              data: visitsData,
+              borderColor: '#00d4ff',
+              backgroundColor: 'rgba(0, 212, 255, 0.1)',
+              fill: true,
+              tension: 0.3,
+              pointRadius: 4,
+              pointHoverRadius: 6
+            },
+            {
+              label: 'Project Views',
+              data: viewsData,
+              borderColor: '#00ff88',
+              backgroundColor: 'rgba(0, 255, 136, 0.1)',
+              fill: true,
+              tension: 0.3,
+              pointRadius: 4,
+              pointHoverRadius: 6
+            },
+            {
+              label: 'Upvotes',
+              data: upvotesData,
+              borderColor: '#ff6b6b',
+              backgroundColor: 'rgba(255, 107, 107, 0.1)',
+              fill: true,
+              tension: 0.3,
+              pointRadius: 4,
+              pointHoverRadius: 6
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            intersect: false,
+            mode: 'index'
+          },
+          plugins: {
+            legend: {
+              labels: {
+                color: '#888',
+                usePointStyle: true,
+                padding: 20
+              }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(26, 26, 46, 0.95)',
+              titleColor: '#fff',
+              bodyColor: '#888',
+              borderColor: '#333',
+              borderWidth: 1,
+              padding: 12,
+              displayColors: true
+            }
+          },
+          scales: {
+            x: {
+              grid: {
+                color: 'rgba(255, 255, 255, 0.05)'
+              },
+              ticks: {
+                color: '#888'
+              }
+            },
+            y: {
+              beginAtZero: true,
+              grid: {
+                color: 'rgba(255, 255, 255, 0.05)'
+              },
+              ticks: {
+                color: '#888',
+                stepSize: 1
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // ─────────────────────────────────────────────────────
+    // MAIN DATA LOADING
+    // ─────────────────────────────────────────────────────
+
+    async function loadAllData() {
+      try {
+        // Fetch today's data for hero metrics and leaderboard
+        const today = getDateString(0);
+        const todayData = await fetchDayData(today);
+        const totals = calculateTotals(todayData);
+        const leaderboard = buildLeaderboard(todayData);
+
+        // Render hero metrics and leaderboard
+        renderHeroMetrics(totals);
+        renderLeaderboard(leaderboard);
+
+        // Fetch last 7 days for trend chart
+        const last7Days = [];
+        for (let i = 6; i >= 0; i--) {
+          const dateStr = getDateString(i);
+          const dayData = await fetchDayData(dateStr);
+          last7Days.push({
+            date: dateStr,
+            totals: calculateTotals(dayData)
+          });
+        }
+
+        // Render trend chart
+        renderTrendChart(last7Days);
+
+      } catch (error) {
+        console.error('Error loading analytics data:', error);
+      }
+    }
+
+    /**
+     * Refresh button handler
+     */
+    async function refreshData() {
+      const btn = document.querySelector('.refresh-btn');
+      btn.disabled = true;
+      btn.textContent = 'Refreshing...';
+
+      await loadAllData();
+
+      btn.disabled = false;
+      btn.textContent = 'Refresh Data';
+    }
+  </script>
+
+</body>
+</html>

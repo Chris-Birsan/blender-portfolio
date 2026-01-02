@@ -5,6 +5,35 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Christopher's Blender Portfolio - 3D Artist & Product Manager</title>
         <link rel="stylesheet" href="styles.css">
+
+        <!-- Firebase Analytics SDK -->
+        <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-analytics-compat.js"></script>
+        <script>
+          // Firebase configuration - connects your site to Firebase services
+          const firebaseConfig = {
+            apiKey: "AIzaSyCCTfVhb4JmISdNOmUzCANKqFjP-BZuyLE",
+            authDomain: "blender-portfolio.firebaseapp.com",
+            databaseURL: "https://blender-portfolio-default-rtdb.firebaseio.com",
+            projectId: "blender-portfolio",
+            storageBucket: "blender-portfolio.firebasestorage.app",
+            messagingSenderId: "852000111596",
+            appId: "1:852000111596:web:39e8881fb42898d737dec9",
+            measurementId: "G-E21H1VJJFX"
+          };
+
+          // Initialize Firebase - this establishes the connection
+          firebase.initializeApp(firebaseConfig);
+
+          // Initialize Analytics - starts tracking automatically
+          const analytics = firebase.analytics();
+
+          // Log that the homepage was viewed (custom event)
+          analytics.logEvent('page_view', {
+            page_title: 'Homepage',
+            page_location: window.location.href
+          });
+        </script>
     </head>
 
     <body>

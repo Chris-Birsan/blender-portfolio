@@ -13,7 +13,11 @@
       "WebFetch(domain:counterapi.dev)",
       "WebFetch(domain:api.npoint.io)",
       "WebFetch(domain:jsonblob.com)",
-      "WebFetch(domain:kvdb.io)"
+      "WebFetch(domain:kvdb.io)",
+      "Bash(git commit:*)",
+      "Bash(git checkout:*)",
+      "Bash(git merge:*)",
+      "Bash(git pull:*)"
     ]
   }
 }

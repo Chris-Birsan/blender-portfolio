@@ -74,6 +74,161 @@ document.addEventListener('DOMContentLoaded', function() {
   // This uses a public Firebase database for shared vote counts
   const FIREBASE_URL = 'https://blender-portfolio-default-rtdb.firebaseio.com';
 
+  // ═══════════════════════════════════════════════════
+  // CUSTOM ANALYTICS TRACKING (for our dashboard)
+  // ═══════════════════════════════════════════════════
+  //
+  // WHY CUSTOM ANALYTICS?
+  // Firebase Analytics is great, but it has a 24-hour delay.
+  // Our custom dashboard shows data in REAL-TIME.
+  //
+  // CONCEPT: Time-Series Data
+  // We store data by date (2026-01-02) so we can:
+  // - Show trends over time (line charts)
+  // - Compare days (yesterday vs today)
+  // - Calculate daily averages
+  //
+  // DATABASE STRUCTURE:
+  // analytics/
+  //   events/
+  //     2026-01-02/
+  //       project_views/
+  //         dungeon: 15
+  //         rocketship: 8
+  //       upvotes/
+  //         dungeon: 5
+  //       total_visits: 23
+  //     2026-01-03/
+  //       ...
+
+  /**
+   * Get today's date in YYYY-MM-DD format
+   * This is used as the key for storing daily analytics
+   */
+  function getTodayDate() {
+    return new Date().toISOString().split('T')[0];
+  }
+
+  /**
+   * Log an analytics event to Firebase Realtime Database
+   *
+   * This function implements the "increment" pattern:
+   * 1. Read current value
+   * 2. Add 1
+   * 3. Write new value
+   *
+   * CONCEPT: Atomic Operations
+   * In production, you'd use Firebase transactions to prevent race conditions.
+   * For a portfolio with low traffic, this simple approach works fine.
+   *
+   * @param {string} eventType - Type of event (project_views, upvotes, etc.)
+   * @param {string} projectName - Name of the project (dungeon, rocketship, etc.)
+   */
+  async function logCustomAnalyticsEvent(eventType, projectName) {
+    try {
+      const today = getTodayDate();
+      const eventPath = `analytics/events/${today}/${eventType}/${projectName}`;
+
+      // Step 1: Get current count
+      const response = await fetch(`${FIREBASE_URL}/${eventPath}.json`);
+      const currentCount = await response.json() || 0;
+
+      // Step 2: Increment and save
+      await fetch(`${FIREBASE_URL}/${eventPath}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(currentCount + 1)
+      });
+
+      // Also log to Firebase Analytics if available (Google's dashboard)
+      if (typeof analytics !== 'undefined') {
+        analytics.logEvent(eventType, {
+          project_name: projectName,
+          timestamp: Date.now()
+        });
+      }
+
+    } catch (error) {
+      console.error('Analytics logging error:', error);
+      // Silently fail - analytics should never break the main app
+    }
+  }
+
+  /**
+   * Increment total visit count for today
+   * This tracks unique page loads (not unique visitors)
+   */
+  async function logPageVisit() {
+    try {
+      const today = getTodayDate();
+      const visitPath = `analytics/events/${today}/total_visits`;
+
+      const response = await fetch(`${FIREBASE_URL}/${visitPath}.json`);
+      const currentCount = await response.json() || 0;
+
+      await fetch(`${FIREBASE_URL}/${visitPath}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(currentCount + 1)
+      });
+    } catch (error) {
+      console.error('Visit logging error:', error);
+    }
+  }
+
+  /**
+   * Detect which project page we're on (if any)
+   * Returns the project name from the URL path
+   *
+   * Examples:
+   * /projects/dungeon.html → "dungeon"
+   * /projects/ak47.html → "ak47"
+   * /index.html → null (not a project page)
+   */
+  function getCurrentProjectFromURL() {
+    const path = window.location.pathname;
+    const match = path.match(/\/projects\/([^/]+)\.html/);
+    return match ? match[1] : null;
+  }
+
+  // ─────────────────────────────────────────────────────
+  // TRACK PAGE VIEWS AND SESSION DURATION
+  // ─────────────────────────────────────────────────────
+
+  // Track when the page was loaded (for session duration)
+  const sessionStartTime = Date.now();
+
+  // Log this page visit
+  logPageVisit();
+
+  // If we're on a project page, track the project view
+  const currentProject = getCurrentProjectFromURL();
+  if (currentProject) {
+    logCustomAnalyticsEvent('project_views', currentProject);
+  }
+
+  // Track session duration when user leaves the page
+  // CONCEPT: beforeunload event
+  // This fires when the user navigates away or closes the tab
+  // We use it to calculate how long they spent on the page
+  window.addEventListener('beforeunload', function() {
+    const timeSpentSeconds = Math.floor((Date.now() - sessionStartTime) / 1000);
+
+    // Only log if they spent more than 2 seconds (filters out accidental clicks)
+    if (timeSpentSeconds > 2 && currentProject) {
+      // Use sendBeacon for reliable delivery during page unload
+      // Regular fetch() might get cancelled when the page closes
+      const today = getTodayDate();
+      const data = JSON.stringify(timeSpentSeconds);
+
+      // Note: sendBeacon is fire-and-forget, perfect for unload events
+      navigator.sendBeacon(
+        `${FIREBASE_URL}/analytics/events/${today}/session_duration/${currentProject}.json`,
+        data
+      );
+    }
+  });
+
   // ─────────────────────────────────────────────────────
   // IP-BASED VOTE LIMITING FUNCTIONS
   // ─────────────────────────────────────────────────────
@@ -407,6 +562,10 @@ document.addEventListener('DOMContentLoaded', function() {
             // Update server: increment count and record IP
             const newCount = await incrementCount(projectName);
             await recordVote(projectName, currentIP);
+
+            // Track upvote in analytics (for our custom dashboard)
+            // This is a KEY METRIC - conversion from view to engagement
+            logCustomAnalyticsEvent('upvotes', projectName);
 
             // Update localStorage
             localStorage.setItem(`upvote_${projectName}`, 'true');
