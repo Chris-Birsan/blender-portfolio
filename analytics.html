@@ -564,6 +564,60 @@
       </div>
     </div>
 
+    <!-- 3D Model Viewer Analytics -->
+    <div class="leaderboard" style="margin-top: 2rem;">
+      <h2>3D Model Viewer Engagement</h2>
+      <p style="color: #888; margin-bottom: 1rem; font-size: 0.9rem;">
+        Interactive 3D model viewer metrics. Ranked by average view time (engagement quality).
+      </p>
+
+      <!-- 3D Viewer Summary Stats -->
+      <div class="hero-metrics" style="margin-bottom: 1.5rem;">
+        <div class="metric-card">
+          <div class="metric-value" id="viewer3DVisits">-</div>
+          <div class="metric-label">Viewer Visits</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value" id="viewer3DModelViews">-</div>
+          <div class="metric-label">Model Views</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value" id="viewer3DAvgTime">-</div>
+          <div class="metric-label">Avg View Time</div>
+        </div>
+      </div>
+
+      <!-- 3D Model Leaderboard -->
+      <div class="leaderboard-table-wrapper">
+        <table class="leaderboard-table">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Model</th>
+              <th>Views</th>
+              <th>Interactions</th>
+              <th>Avg. Time</th>
+            </tr>
+          </thead>
+          <tbody id="model3DLeaderboardBody">
+            <tr>
+              <td colspan="5" class="loading">
+                <div class="spinner"></div>
+                Loading 3D viewer data...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Link to 3D Viewer -->
+      <div style="text-align: center; margin-top: 1.5rem;">
+        <a href="viewer.html" style="color: #00d4ff; text-decoration: none; font-size: 0.9rem;">
+          Open 3D Viewer →
+        </a>
+      </div>
+    </div>
+
     <!-- Footer -->
     <div style="text-align: center; color: #666; font-size: 0.85rem; margin-top: 2rem;">
       <p>Data refreshes in real-time from Firebase Realtime Database</p>
@@ -929,9 +983,142 @@
         // Render trend chart
         renderTrendChart(last7Days);
 
+        // Fetch and render 3D viewer analytics
+        await load3DViewerData();
+
       } catch (error) {
         console.error('Error loading analytics data:', error);
       }
+    }
+
+    // ─────────────────────────────────────────────────────
+    // 3D VIEWER ANALYTICS
+    // ─────────────────────────────────────────────────────
+
+    /**
+     * Fetch and display 3D Viewer analytics
+     * Data structure in Firebase:
+     * analytics/3d_viewer/2026-01-02/
+     *   3d_viewer_visits/total: 50
+     *   3d_model_views/dungeon: 20
+     *   3d_model_interactions/dungeon: 15
+     *   3d_model_durations/dungeon/{total_seconds, view_count}
+     */
+    async function load3DViewerData() {
+      try {
+        const today = getDateString(0);
+        const response = await fetch(`${FIREBASE_URL}/analytics/3d_viewer/${today}.json`);
+        const data = await response.json();
+
+        if (!data) {
+          render3DViewerEmpty();
+          return;
+        }
+
+        // Calculate summary stats
+        const visits = data['3d_viewer_visits']?.total || 0;
+        const views = data['3d_model_views'] || {};
+        const interactions = data['3d_model_interactions'] || {};
+        const durations = data['3d_model_durations'] || {};
+
+        const totalViews = Object.values(views).reduce((sum, v) => sum + v, 0);
+
+        // Calculate overall average view time
+        let totalSeconds = 0;
+        let totalViewCount = 0;
+        Object.values(durations).forEach(d => {
+          totalSeconds += d.total_seconds || 0;
+          totalViewCount += d.view_count || 0;
+        });
+        const avgTime = totalViewCount > 0 ? Math.round(totalSeconds / totalViewCount) : 0;
+
+        // Update summary cards
+        document.getElementById('viewer3DVisits').textContent = visits;
+        document.getElementById('viewer3DModelViews').textContent = totalViews;
+        document.getElementById('viewer3DAvgTime').textContent = `${avgTime}s`;
+
+        // Build leaderboard data
+        const modelData = PROJECTS.map(model => {
+          const modelViews = views[model] || 0;
+          const modelInteractions = interactions[model] || 0;
+          const modelDuration = durations[model] || { total_seconds: 0, view_count: 0 };
+          const modelAvgTime = modelDuration.view_count > 0
+            ? Math.round(modelDuration.total_seconds / modelDuration.view_count)
+            : 0;
+
+          return {
+            name: model,
+            views: modelViews,
+            interactions: modelInteractions,
+            avgTime: modelAvgTime
+          };
+        });
+
+        // Sort by average time (engagement quality), then by views
+        modelData.sort((a, b) => {
+          if (b.avgTime !== a.avgTime) return b.avgTime - a.avgTime;
+          return b.views - a.views;
+        });
+
+        // Render leaderboard
+        render3DModelLeaderboard(modelData);
+
+      } catch (error) {
+        console.error('Error loading 3D viewer data:', error);
+        render3DViewerEmpty();
+      }
+    }
+
+    /**
+     * Render the 3D model leaderboard table
+     */
+    function render3DModelLeaderboard(models) {
+      const tbody = document.getElementById('model3DLeaderboardBody');
+
+      if (models.every(m => m.views === 0 && m.interactions === 0)) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" style="text-align: center; color: #888; padding: 2rem;">
+              No 3D viewer data yet. <a href="viewer.html" style="color: #00d4ff;">Visit the 3D Viewer</a> to generate analytics!
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = models.map((model, index) => {
+        const rank = index + 1;
+        const rankClass = rank <= 3 ? `rank-${rank}` : '';
+        const displayName = model.name.charAt(0).toUpperCase() + model.name.slice(1);
+
+        return `
+          <tr class="${rankClass}">
+            <td><span class="rank rank-badge">#${rank}</span></td>
+            <td class="project-name">${displayName}</td>
+            <td>${model.views}</td>
+            <td>${model.interactions}</td>
+            <td>${model.avgTime}s</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    /**
+     * Show empty state for 3D viewer section
+     */
+    function render3DViewerEmpty() {
+      document.getElementById('viewer3DVisits').textContent = '0';
+      document.getElementById('viewer3DModelViews').textContent = '0';
+      document.getElementById('viewer3DAvgTime').textContent = '0s';
+
+      const tbody = document.getElementById('model3DLeaderboardBody');
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" style="text-align: center; color: #888; padding: 2rem;">
+            No 3D viewer data yet. <a href="viewer.html" style="color: #00d4ff;">Visit the 3D Viewer</a> to generate analytics!
+          </td>
+        </tr>
+      `;
     }
 
     /**

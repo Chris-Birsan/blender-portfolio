@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Model Viewer - Christopher's Portfolio</title>
+  <link rel="stylesheet" href="styles.css">
+
+  <!--
+    GOOGLE'S MODEL-VIEWER LIBRARY
+    ============================
+    This is a Web Component that renders interactive 3D models in the browser.
+
+    What is a Web Component?
+    - Custom HTML elements (like <video> but for 3D)
+    - Encapsulated styling (won't interfere with your CSS)
+    - Just add the script, then use <model-viewer> like any HTML tag!
+
+    Under the hood, it uses:
+    - Three.js (JavaScript 3D library)
+    - WebGL (browser's GPU-accelerated graphics API)
+
+    This is the SAME tech stack Epic Games uses for Fortnite.com's 3D previews!
+  -->
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
+
+  <!-- Firebase Analytics SDK (reusing your existing config) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-analytics-compat.js"></script>
+  <script>
+    // Firebase configuration - SAME config as your other pages
+    // We reuse this so all analytics go to the same Firebase project
+    const firebaseConfig = {
+      apiKey: "AIzaSyCCTfVhb4JmISdNOmUzCANKqFjP-BZuyLE",
+      authDomain: "blender-portfolio.firebaseapp.com",
+      databaseURL: "https://blender-portfolio-default-rtdb.firebaseio.com",
+      projectId: "blender-portfolio",
+      storageBucket: "blender-portfolio.firebasestorage.app",
+      messagingSenderId: "852000111596",
+      appId: "1:852000111596:web:39e8881fb42898d737dec9",
+      measurementId: "G-E21H1VJJFX"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const analytics = firebase.analytics();
+
+    // Log that someone visited the 3D viewer page
+    analytics.logEvent('page_view', {
+      page_title: '3D Model Viewer',
+      page_location: window.location.href
+    });
+  </script>
+
+  <style>
+    /* ═══════════════════════════════════════════════════
+       3D VIEWER PAGE STYLES
+       ═══════════════════════════════════════════════════ */
+
+    .viewer-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    /* Page Header - matches your existing gradient style */
+    .viewer-header {
+      background: linear-gradient(135deg,
+        #667eea 0%,
+        #764ba2 20%,
+        #f093fb 40%,
+        #4facfe 60%,
+        #00f2fe 80%,
+        #43e97b 100%);
+      background-size: 400% 400%;
+      animation: gradientWave 6s ease infinite;
+      color: white;
+      padding: 40px 20px;
+      text-align: center;
+      border-radius: 10px;
+      margin-bottom: 30px;
+    }
+
+    .viewer-header h1 {
+      color: white;
+      margin: 0 0 10px 0;
+      font-size: 36px;
+    }
+
+    .viewer-header p {
+      color: rgba(255, 255, 255, 0.9);
+      margin: 0 auto;
+      font-size: 18px;
+      text-align: center;
+      max-width: 600px;
+    }
+
+    /* Model Selector Grid */
+    .model-selector {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 15px;
+      margin-bottom: 30px;
+    }
+
+    /*
+      MODEL OPTION CARDS
+      Each card represents one of your Blender models.
+      Users click these to switch which model is displayed.
+    */
+    .model-option {
+      background: white;
+      padding: 15px;
+      border-radius: 10px;
+      text-align: center;
+      cursor: pointer;
+      transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
+      border: 2px solid transparent;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .model-option:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Active state - shows which model is currently selected */
+    .model-option.active {
+      border-color: #667eea;
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+    }
+
+    .model-option h3 {
+      margin: 0 0 5px 0;
+      font-size: 16px;
+      color: #2c3e50;
+    }
+
+    .model-option p {
+      margin: 0;
+      font-size: 12px;
+      color: #888;
+    }
+
+    .model-icon {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    /* 3D Viewer Section */
+    .viewer-section {
+      background: #f5f5f5;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 30px;
+    }
+
+    /*
+      THE MODEL-VIEWER ELEMENT
+      =======================
+      This is the actual 3D viewer component from Google.
+
+      Key attributes we use:
+      - src: Path to the .glb file
+      - camera-controls: Allows rotate/zoom/pan
+      - auto-rotate: Model spins automatically
+      - shadow-intensity: Adds realistic ground shadow
+      - ar: Enables AR mode on supported devices
+
+      The component handles ALL the WebGL rendering for us!
+    */
+    model-viewer {
+      width: 100%;
+      height: 500px;
+      background-color: #ffffff;
+      border-radius: 12px;
+      --poster-color: transparent;
+    }
+
+    /* Loading indicator that appears while model loads */
+    model-viewer .progress-bar {
+      display: block;
+      width: 100%;
+      height: 4px;
+      background: #e0e0e0;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      border-radius: 0 0 12px 12px;
+      overflow: hidden;
+    }
+
+    model-viewer .update-bar {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      width: 0%;
+      height: 100%;
+      transition: width 0.3s;
+    }
+
+    /* AR Button - appears on mobile devices that support AR */
+    .ar-button {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 30px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .ar-button:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    /* Model Info Panel */
+    .model-info {
+      background: white;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .model-info h2 {
+      margin: 0 0 10px 0;
+      color: #2c3e50;
+    }
+
+    .model-info p {
+      margin: 0 0 20px 0;
+      color: #666;
+      line-height: 1.6;
+    }
+
+    /*
+      CONTROLS HELP SECTION
+      Teaches users how to interact with the 3D model.
+      Good UX always includes affordances (hints about what's possible).
+    */
+    .controls-help {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 15px;
+      padding: 20px;
+      background: #f9f9f9;
+      border-radius: 8px;
+    }
+
+    .control-item {
+      text-align: center;
+    }
+
+    .control-icon {
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+
+    .control-item h4 {
+      margin: 0 0 5px 0;
+      font-size: 14px;
+      color: #2c3e50;
+    }
+
+    .control-item p {
+      margin: 0;
+      font-size: 12px;
+      color: #888;
+    }
+
+    /* Loading State */
+    .loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      z-index: 10;
+    }
+
+    .loading-overlay.hidden {
+      display: none;
+    }
+
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid #e0e0e0;
+      border-top-color: #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 15px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      color: #666;
+      font-size: 14px;
+    }
+
+    /* Stats Bar */
+    .viewer-stats {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      padding: 15px;
+      background: white;
+      border-radius: 8px;
+      margin-top: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .stat-item {
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #667eea;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: #888;
+      text-transform: uppercase;
+    }
+
+    /* Back to Portfolio Link */
+    .back-link {
+      display: inline-block;
+      margin-bottom: 20px;
+      color: #667eea;
+      text-decoration: none;
+      font-size: 16px;
+      transition: color 0.3s;
+    }
+
+    .back-link:hover {
+      color: #764ba2;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .viewer-container {
+        padding: 15px;
+      }
+
+      .viewer-header {
+        padding: 30px 15px;
+      }
+
+      .viewer-header h1 {
+        font-size: 28px;
+      }
+
+      .model-selector {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 10px;
+      }
+
+      .model-option {
+        padding: 12px 8px;
+      }
+
+      .model-option h3 {
+        font-size: 13px;
+      }
+
+      .model-option p {
+        display: none; /* Hide category on mobile */
+      }
+
+      .model-icon {
+        font-size: 24px;
+      }
+
+      model-viewer {
+        height: 350px;
+      }
+
+      .controls-help {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .viewer-stats {
+        flex-wrap: wrap;
+        gap: 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation (same structure as your other pages) -->
+  <nav id="main-nav">
+    <button class="hamburger" id="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+
+    <div class="nav-brand">
+      <h2 class="logo-text">CB</h2>
+    </div>
+
+    <ul class="nav-menu" id="nav-menu">
+      <li><a href="index.html" class="nav-link">Home</a></li>
+      <li><a href="viewer.html" class="nav-link active">3D Viewer</a></li>
+      <li class="nav-dropdown">
+        <span class="nav-link dropdown-toggle">Projects</span>
+        <ul class="dropdown-menu">
+          <li><a href="projects/dungeon.html" class="nav-link">Dungeon</a></li>
+          <li><a href="projects/rocketship.html" class="nav-link">Rocketship</a></li>
+          <li><a href="projects/ak47.html" class="nav-link">AK47</a></li>
+          <li><a href="projects/awp.html" class="nav-link">AWP</a></li>
+          <li><a href="projects/pizza.html" class="nav-link">Pizza</a></li>
+          <li><a href="projects/mouse.html" class="nav-link">Mouse</a></li>
+          <li><a href="projects/house.html" class="nav-link">House</a></li>
+          <li><a href="projects/lighthouse.html" class="nav-link">Lighthouse</a></li>
+        </ul>
+      </li>
+    </ul>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="viewer-container">
+
+    <!-- Back Link -->
+    <a href="index.html" class="back-link">Back to Portfolio</a>
+
+    <!-- Page Header -->
+    <div class="viewer-header">
+      <h1>Interactive 3D Models</h1>
+      <p>Explore my Blender projects in full 3D - rotate, zoom, and inspect every detail!</p>
+    </div>
+
+    <!-- Model Selector -->
+    <div class="model-selector" id="modelSelector">
+      <div class="model-option active" data-model="dungeon">
+        <div class="model-icon">&#x1F3F0;</div>
+        <h3>Dungeon</h3>
+        <p>Environment</p>
+      </div>
+      <div class="model-option" data-model="rocketship">
+        <div class="model-icon">&#x1F680;</div>
+        <h3>Rocketship</h3>
+        <p>Vehicle</p>
+      </div>
+      <div class="model-option" data-model="ak47">
+        <div class="model-icon">&#x1F52B;</div>
+        <h3>AK47</h3>
+        <p>Weapon</p>
+      </div>
+      <div class="model-option" data-model="awp">
+        <div class="model-icon">&#x1F3AF;</div>
+        <h3>AWP</h3>
+        <p>Weapon</p>
+      </div>
+      <div class="model-option" data-model="pizza">
+        <div class="model-icon">&#x1F355;</div>
+        <h3>Pizza</h3>
+        <p>Food</p>
+      </div>
+      <div class="model-option" data-model="mouse">
+        <div class="model-icon">&#x1F5B1;</div>
+        <h3>Mouse</h3>
+        <p>Tech</p>
+      </div>
+      <div class="model-option" data-model="house">
+        <div class="model-icon">&#x1F3E0;</div>
+        <h3>House</h3>
+        <p>Architecture</p>
+      </div>
+      <div class="model-option" data-model="lighthouse">
+        <div class="model-icon">&#x1F5FC;</div>
+        <h3>Lighthouse</h3>
+        <p>Environment</p>
+      </div>
+    </div>
+
+    <!-- 3D Viewer -->
+    <div class="viewer-section">
+      <!--
+        MODEL-VIEWER COMPONENT
+        ======================
+        This single HTML element does ALL the 3D rendering!
+
+        Attributes explained:
+        - id: So we can reference it in JavaScript
+        - src: Path to the .glb file (we'll set this dynamically)
+        - alt: Accessibility description
+        - auto-rotate: Model spins slowly
+        - camera-controls: User can rotate/zoom/pan
+        - shadow-intensity: Ground shadow strength (0-1)
+        - exposure: Brightness (1 = normal)
+        - ar: Enables AR mode on supported devices
+        - ar-modes: Which AR technologies to try (WebXR, SceneViewer, QuickLook)
+        - poster: Image shown while loading
+
+        The library handles:
+        - Loading and parsing GLB files
+        - WebGL rendering with PBR materials
+        - Touch/mouse controls
+        - Progressive loading with poster
+        - AR on mobile devices
+      -->
+      <model-viewer
+        id="modelViewer"
+        src="models/dungeon.glb"
+        alt="3D Model Viewer"
+        auto-rotate
+        camera-controls
+        shadow-intensity="1"
+        exposure="1"
+        ar
+        ar-modes="webxr scene-viewer quick-look"
+        camera-orbit="45deg 75deg 2m"
+        min-camera-orbit="auto auto auto"
+        max-camera-orbit="auto auto auto"
+        interaction-prompt="auto">
+
+        <!-- Loading Progress Bar -->
+        <div class="progress-bar" slot="progress-bar">
+          <div class="update-bar" id="progressBar"></div>
+        </div>
+
+        <!-- AR Button (shows on supported devices) -->
+        <button slot="ar-button" class="ar-button">
+          View in AR
+        </button>
+      </model-viewer>
+    </div>
+
+    <!-- Model Info -->
+    <div class="model-info">
+      <h2 id="modelTitle">Dungeon Environment</h2>
+      <p id="modelDescription">
+        A medieval dungeon environment featuring stone walls, torches, and atmospheric lighting.
+        Created in Blender with PBR materials and detailed texturing.
+      </p>
+
+      <!-- Interaction Controls Help -->
+      <div class="controls-help">
+        <div class="control-item">
+          <div class="control-icon">&#x1F5B1;&#xFE0F;</div>
+          <h4>Rotate</h4>
+          <p>Click + drag</p>
+        </div>
+        <div class="control-item">
+          <div class="control-icon">&#x1F50D;</div>
+          <h4>Zoom</h4>
+          <p>Scroll wheel</p>
+        </div>
+        <div class="control-item">
+          <div class="control-icon">&#x2194;&#xFE0F;</div>
+          <h4>Pan</h4>
+          <p>Right-click drag</p>
+        </div>
+        <div class="control-item">
+          <div class="control-icon">&#x1F4F1;</div>
+          <h4>Mobile</h4>
+          <p>Touch to interact</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Viewer Stats (populated by JavaScript) -->
+    <div class="viewer-stats">
+      <div class="stat-item">
+        <div class="stat-value" id="viewCount">0</div>
+        <div class="stat-label">Views Today</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="interactionCount">0</div>
+        <div class="stat-label">Interactions</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="avgViewTime">0s</div>
+        <div class="stat-label">Avg. View Time</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Viewer JavaScript (model switching, analytics) -->
+  <script src="viewer.js"></script>
+</body>
+</html>

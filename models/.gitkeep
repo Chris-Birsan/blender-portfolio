@@ -1,0 +1,14 @@
+# Placeholder for GLB model files
+#
+# Add your exported Blender models here:
+# - dungeon.glb
+# - rocketship.glb
+# - ak47.glb
+# - awp.glb
+# - pizza.glb
+# - mouse.glb
+# - house.glb
+# - lighthouse.glb
+#
+# Export from Blender: File > Export > glTF 2.0 (.glb)
+# Use "glTF Binary (.glb)" format with embedded textures
