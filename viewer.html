@@ -170,7 +170,8 @@
     */
     model-viewer {
       width: 100%;
-      height: 500px;
+      height: 75vh; /* 75% of viewport height - much bigger! */
+      min-height: 500px;
       background-color: #ffffff;
       border-radius: 12px;
       --poster-color: transparent;
@@ -388,7 +389,8 @@
       }
 
       model-viewer {
-        height: 350px;
+        height: 60vh; /* 60% on mobile */
+        min-height: 300px;
       }
 
       .controls-help {
