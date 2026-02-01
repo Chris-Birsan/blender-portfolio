@@ -1,3 +1,4 @@
+# Task/learning docs
 LEARNING_GUIDE.md
 task.md
 task-analysis.md
@@ -5,3 +6,28 @@ LEARNING_GIUIDE_FIREBASE.md
 TEST_REPORT.md
 agent.md
 bugfix-upvote-toggle.md
+task3dviewer.md
+
+# Dependencies
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor directories
+.vscode/
+.idea/
+
+# Environment
+.env
+.env.local
+
+# Build output
+dist/
+build/
+
+# Blender temp/backup files
+*.blend1
+*.blend2

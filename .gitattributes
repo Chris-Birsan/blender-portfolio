@@ -1,0 +1,14 @@
+# Mark binary 3D model files — prevents git from attempting text diffs
+*.glb binary
+*.gltf binary
+*.fbx binary
+*.obj binary
+*.blend binary
+
+# Images
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
