@@ -997,17 +997,17 @@
 
     /**
      * Fetch and display 3D Viewer analytics
-     * Data structure in Firebase:
-     * analytics/3d_viewer/2026-01-02/
-     *   3d_viewer_visits/total: 50
-     *   3d_model_views/dungeon: 20
-     *   3d_model_interactions/dungeon: 15
-     *   3d_model_durations/dungeon/{total_seconds, view_count}
+     * Data is stored under analytics/events/{date}/session_duration/
+     * with 3dv_ prefixed keys:
+     *   3dv_page_visits: 50
+     *   3dv_views_dungeon: 20
+     *   3dv_interactions_dungeon: 15
+     *   3dv_dur_secs_dungeon: 300, 3dv_dur_count_dungeon: 5
      */
     async function load3DViewerData() {
       try {
         const today = getDateString(0);
-        const response = await fetch(`${FIREBASE_URL}/analytics/3d_viewer/${today}.json`);
+        const response = await fetch(`${FIREBASE_URL}/analytics/events/${today}/session_duration.json`);
         const data = await response.json();
 
         if (!data) {
@@ -1015,20 +1015,16 @@
           return;
         }
 
-        // Calculate summary stats
-        const visits = data['3d_viewer_visits']?.total || 0;
-        const views = data['3d_model_views'] || {};
-        const interactions = data['3d_model_interactions'] || {};
-        const durations = data['3d_model_durations'] || {};
+        // Calculate summary stats from 3dv_ prefixed keys
+        const visits = data['3dv_page_visits'] || 0;
 
-        const totalViews = Object.values(views).reduce((sum, v) => sum + v, 0);
-
-        // Calculate overall average view time
+        let totalViews = 0;
         let totalSeconds = 0;
         let totalViewCount = 0;
-        Object.values(durations).forEach(d => {
-          totalSeconds += d.total_seconds || 0;
-          totalViewCount += d.view_count || 0;
+        PROJECTS.forEach(model => {
+          totalViews += data[`3dv_views_${model}`] || 0;
+          totalSeconds += data[`3dv_dur_secs_${model}`] || 0;
+          totalViewCount += data[`3dv_dur_count_${model}`] || 0;
         });
         const avgTime = totalViewCount > 0 ? Math.round(totalSeconds / totalViewCount) : 0;
 
@@ -1039,12 +1035,11 @@
 
         // Build leaderboard data
         const modelData = PROJECTS.map(model => {
-          const modelViews = views[model] || 0;
-          const modelInteractions = interactions[model] || 0;
-          const modelDuration = durations[model] || { total_seconds: 0, view_count: 0 };
-          const modelAvgTime = modelDuration.view_count > 0
-            ? Math.round(modelDuration.total_seconds / modelDuration.view_count)
-            : 0;
+          const modelViews = data[`3dv_views_${model}`] || 0;
+          const modelInteractions = data[`3dv_interactions_${model}`] || 0;
+          const durSecs = data[`3dv_dur_secs_${model}`] || 0;
+          const durCount = data[`3dv_dur_count_${model}`] || 0;
+          const modelAvgTime = durCount > 0 ? Math.round(durSecs / durCount) : 0;
 
           return {
             name: model,
@@ -1170,6 +1165,12 @@
         await putJSON(`analytics/events/${today}/upvotes/${project}`, 0);
         await putJSON(`analytics/events/${today}/session_duration/${project}`, 0);
 
+        // Reset 3D viewer analytics keys for this model
+        await putJSON(`analytics/events/${today}/session_duration/3dv_views_${project}`, 0);
+        await putJSON(`analytics/events/${today}/session_duration/3dv_interactions_${project}`, 0);
+        await putJSON(`analytics/events/${today}/session_duration/3dv_dur_secs_${project}`, 0);
+        await putJSON(`analytics/events/${today}/session_duration/3dv_dur_count_${project}`, 0);
+
         // Keep vote totals and voter flags in sync with reset state
         await putJSON(`votes/${project}/count`, 0);
 
@@ -1186,6 +1187,9 @@
         }
       }
 
+
+      // Reset 3D viewer page visits
+      await putJSON(`analytics/events/${today}/session_duration/3dv_page_visits`, 0);
       await loadAllData();
 
       if (btn) {

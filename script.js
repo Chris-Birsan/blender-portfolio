@@ -287,16 +287,16 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Only log if they spent more than 2 seconds (filters out accidental clicks)
     if (timeSpentSeconds > 2 && currentProject) {
-      // Use sendBeacon for reliable delivery during page unload
-      // Regular fetch() might get cancelled when the page closes
+      // Use fetch with keepalive instead of sendBeacon because Firebase
+      // REST API requires PUT, but sendBeacon only supports POST.
       const today = getTodayDate();
-      const data = JSON.stringify(timeSpentSeconds);
 
-      // Note: sendBeacon is fire-and-forget, perfect for unload events
-      navigator.sendBeacon(
-        `${FIREBASE_URL}/analytics/events/${today}/session_duration/${currentProject}.json`,
-        data
-      );
+      fetch(`${FIREBASE_URL}/analytics/events/${today}/session_duration/${currentProject}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(timeSpentSeconds),
+        keepalive: true
+      }).catch(() => {});
     }
   });
 

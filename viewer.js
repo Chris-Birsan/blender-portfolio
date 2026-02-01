@@ -379,7 +379,7 @@ async function trackPageView() {
   }
 
   // Custom database (for our real-time dashboard)
-  await logToDatabase('3d_viewer_visits', 'total');
+  await logToDatabase('3dv_page', 'visits');
 }
 
 /**
@@ -399,7 +399,7 @@ async function trackModelView(modelId) {
   }
 
   // Custom database
-  await logToDatabase('3d_model_views', modelId);
+  await logToDatabase('3dv_views', modelId);
 
   // Update stats display
   fetchAndDisplayStats();
@@ -454,7 +454,7 @@ async function trackModelInteraction(modelId) {
   }
 
   // Custom database
-  await logToDatabase('3d_model_interactions', modelId);
+  await logToDatabase('3dv_interactions', modelId);
 }
 
 /**
@@ -463,20 +463,18 @@ async function trackModelInteraction(modelId) {
  * Generic function to increment a counter in Firebase.
  *
  * Database structure:
- * analytics/
- *   3d_viewer/
- *     2026-01-02/
- *       3d_model_views/
- *         dungeon: 15
- *         ak47: 8
+ * analytics/events/{date}/session_duration/
+ *   3dv_views_dungeon: 15
+ *   3dv_views_ak47: 8
  *
- * @param {string} eventType - Type of event (3d_model_views, etc.)
- * @param {string} key - Specific item (model name, 'total', etc.)
+ * @param {string} eventType - Event prefix (3dv_views, 3dv_interactions, etc.)
+ * @param {string} key - Specific item (model name, etc.)
  */
 async function logToDatabase(eventType, key) {
   try {
     const today = getTodayDate();
-    const path = `analytics/3d_viewer/${today}/${eventType}/${key}`;
+    const dbKey = `${eventType}_${key}`;
+    const path = `analytics/events/${today}/session_duration/${dbKey}`;
 
     // GET current value
     const response = await fetch(`${FIREBASE_URL}/${path}.json`);
@@ -512,23 +510,24 @@ async function logToDatabase(eventType, key) {
 async function logDurationToDatabase(modelId, seconds) {
   try {
     const today = getTodayDate();
-    const basePath = `analytics/3d_viewer/${today}/3d_model_durations/${modelId}`;
+    const secsPath = `analytics/events/${today}/session_duration/3dv_dur_secs_${modelId}`;
+    const countPath = `analytics/events/${today}/session_duration/3dv_dur_count_${modelId}`;
 
     // Get current totals
-    const totalResponse = await fetch(`${FIREBASE_URL}/${basePath}/total_seconds.json`);
+    const totalResponse = await fetch(`${FIREBASE_URL}/${secsPath}.json`);
     const currentTotal = (await totalResponse.json()) || 0;
 
-    const countResponse = await fetch(`${FIREBASE_URL}/${basePath}/view_count.json`);
+    const countResponse = await fetch(`${FIREBASE_URL}/${countPath}.json`);
     const currentCount = (await countResponse.json()) || 0;
 
     // Update both values
-    await fetch(`${FIREBASE_URL}/${basePath}/total_seconds.json`, {
+    await fetch(`${FIREBASE_URL}/${secsPath}.json`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(currentTotal + seconds)
     });
 
-    await fetch(`${FIREBASE_URL}/${basePath}/view_count.json`, {
+    await fetch(`${FIREBASE_URL}/${countPath}.json`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(currentCount + 1)
@@ -549,7 +548,7 @@ async function fetchAndDisplayStats() {
     const today = getTodayDate();
 
     // Fetch today's 3D viewer data
-    const response = await fetch(`${FIREBASE_URL}/analytics/3d_viewer/${today}.json`);
+    const response = await fetch(`${FIREBASE_URL}/analytics/events/${today}/session_duration.json`);
     const data = await response.json();
 
     if (!data) {
@@ -558,19 +557,18 @@ async function fetchAndDisplayStats() {
       return;
     }
 
-    // Calculate total views across all models
-    const views = data['3d_model_views'] || {};
-    const totalViews = Object.values(views).reduce((sum, count) => sum + count, 0);
+    const modelKeys = ['dungeon','rocketship','ak47','awp','pizza','mouse','house','lighthouse'];
+    let totalViews = 0;
+    modelKeys.forEach(model => {
+      totalViews += data[`3dv_views_${model}`] || 0;
+    });
     viewCountEl.textContent = totalViews;
 
-    // Calculate average view time across all models
-    const durations = data['3d_model_durations'] || {};
     let totalSeconds = 0;
     let totalViewCount = 0;
-
-    Object.values(durations).forEach(model => {
-      totalSeconds += model.total_seconds || 0;
-      totalViewCount += model.view_count || 0;
+    modelKeys.forEach(model => {
+      totalSeconds += data[`3dv_dur_secs_${model}`] || 0;
+      totalViewCount += data[`3dv_dur_count_${model}`] || 0;
     });
 
     const avgSeconds = totalViewCount > 0 ? Math.round(totalSeconds / totalViewCount) : 0;
@@ -596,24 +594,25 @@ async function fetchAndDisplayStats() {
  * - Catches all exit scenarios (navigate away, close tab, refresh)
  * - Guaranteed to fire before page unloads
  *
- * Note: We use sendBeacon for reliability during unload.
- * Regular fetch() might get cancelled when the page closes.
+ * Uses fetch with keepalive instead of sendBeacon because Firebase REST API
+ * requires PUT method, but sendBeacon only supports POST.
  */
 window.addEventListener('beforeunload', () => {
   // Calculate final view duration
   const durationSeconds = Math.floor((Date.now() - viewStartTime) / 1000);
 
   if (durationSeconds >= 2 && currentModel) {
-    // Use sendBeacon for reliable delivery during page unload
     const today = getTodayDate();
+    const path = `analytics/events/${today}/session_duration/3dv_last_dur_${currentModel}`;
 
-    // Note: sendBeacon doesn't support complex operations,
-    // so we just log the duration. The increment logic won't work here,
-    // but we'll at least capture some data.
-    navigator.sendBeacon(
-      `${FIREBASE_URL}/analytics/3d_viewer/${today}/3d_model_durations/${currentModel}/last_duration.json`,
-      JSON.stringify(durationSeconds)
-    );
+    // Use fetch with keepalive instead of sendBeacon because Firebase
+    // REST API requires PUT, but sendBeacon only supports POST.
+    fetch(`${FIREBASE_URL}/${path}.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(durationSeconds),
+      keepalive: true
+    }).catch(() => {});
   }
 });
 
